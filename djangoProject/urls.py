@@ -19,5 +19,10 @@ from django.urls import path
 from book import views
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('book', views.getname),
+
+    # http://127.0.0.1:8000/book?id=1
+    path('book', views.book_details_query_string),
+
+    # http://127.0.0.1:8000/book/1
+    path('book/<int:book_id>/<str:book_name>/', views.book_details_path),
 ]
