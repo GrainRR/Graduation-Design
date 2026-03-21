@@ -1,0 +1,9 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>我的入社申请</h2>
+<table><tr><th>姓名</th><th>意向部门</th><th>状态</th><th>审核意见</th><th>时间</th></tr>
+{% for a in apps %}
+<tr><td>{{ a.applicant_name }}</td><td>{{ a.intended_department|default:'-' }}</td><td>{{ a.get_status_display }}</td><td>{{ a.review_comment|default:'-' }}</td><td>{{ a.created_at }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

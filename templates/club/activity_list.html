@@ -1,0 +1,17 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>活动列表</h2>
+<table><tr><th>标题</th><th>时间</th><th>地点</th><th>人数</th><th>操作</th></tr>
+{% for a in activities %}
+<tr>
+  <td>{{ a.title }}</td><td>{{ a.start_time }} ~ {{ a.end_time }}</td><td>{{ a.location }}</td>
+  <td>{{ a.registrations.count }}/{{ a.capacity }}</td>
+  <td>
+    {% if a.id in my_reg_ids %}已报名{% else %}
+    <a href="{% url 'club:activity_register' a.id %}">报名</a>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

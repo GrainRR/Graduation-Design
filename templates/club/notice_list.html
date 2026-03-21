@@ -1,0 +1,9 @@
+﻿{% extends 'club/base.html' %}
+{% block content %}
+<h2>公告列表</h2>
+<table><tr><th>标题</th><th>发布时间</th><th>已读</th></tr>
+{% for n in notices %}
+<tr><td><a href="{% url 'club:notice_detail' n.id %}">{{ n.title }}</a></td><td>{{ n.publish_at }}</td><td>{% if n.id in read_ids %}已读{% else %}未读{% endif %}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

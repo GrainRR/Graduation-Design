@@ -1,0 +1,15 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>我的活动</h2>
+<table><tr><th>活动</th><th>状态</th><th>操作</th></tr>
+{% for r in registrations %}
+<tr>
+  <td>{{ r.activity.title }}</td><td>{{ r.get_status_display }}</td>
+  <td>
+    <a href="{% url 'club:activity_cancel' r.activity.id %}">取消报名</a>
+    <a href="{% url 'club:activity_checkin' r.activity.id %}">签到</a>
+  </td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

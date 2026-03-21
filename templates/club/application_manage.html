@@ -1,0 +1,17 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>入社审批</h2>
+<table><tr><th>申请人</th><th>学号</th><th>电话</th><th>部门</th><th>状态</th><th>操作</th></tr>
+{% for a in apps %}
+<tr>
+  <td>{{ a.applicant_name }}</td><td>{{ a.student_id }}</td><td>{{ a.phone }}</td>
+  <td>{{ a.intended_department|default:'-' }}</td><td>{{ a.get_status_display }}</td>
+  <td>
+    <form method="post" action="{% url 'club:application_review' a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
+    <form method="post" action="{% url 'club:application_review' a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
+    <form method="post" action="{% url 'club:application_review' a.id 'return' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>
+  </td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

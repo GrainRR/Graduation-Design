@@ -1,0 +1,29 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>社长 / 副社长管理</h2>
+<p>当前社长：{{ president_assignment.profile.full_name|default:'未设置' }}</p>
+<p>当前副社长：{{ vice_assignment.profile.full_name|default:'未设置' }}</p>
+
+{% if is_president %}
+<h3>任命副社长</h3>
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="appoint_vice">
+    <select name="vice_profile_id" required>
+        <option value="">请选择成员</option>
+        {% for c in candidates %}
+            <option value="{{ c.id }}">{{ c.full_name }}（{{ c.student_id|default:'-' }}）</option>
+        {% endfor %}
+    </select>
+    <button type="submit">任命为副社长</button>
+</form>
+
+<h3>社长让位</h3>
+<form method="post" action="{% url 'club:leadership_transfer' %}">
+    {% csrf_token %}
+    <button type="submit">让位给当前副社长（交换职位）</button>
+</form>
+{% else %}
+<p class="muted">仅当前社长可执行任命和让位操作。</p>
+{% endif %}
+{% endblock %}

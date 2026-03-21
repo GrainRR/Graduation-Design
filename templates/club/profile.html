@@ -1,0 +1,35 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>个人资料</h2>
+<div class="profile-layout">
+    <div class="profile-main">
+        <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">保存</button></form>
+        <p style="margin-top:16px;"><a href="{% url 'club:change_password' %}">修改密码</a></p>
+    </div>
+    <aside class="profile-side">
+        <h3>组织与职务</h3>
+        <p class="muted" style="margin-top:0;">用户类别</p>
+        {% if user.profile.role == 'super_admin' %}
+        <p><span class="badge-role super">{{ role_label }}</span></p>
+        {% elif user.profile.role == 'club_admin' %}
+        <p><span class="badge-role admin">{{ role_label }}</span></p>
+        {% else %}
+        <p><span class="badge-role member">{{ role_label }}</span></p>
+        {% endif %}
+        <p class="muted" style="margin-bottom:6px;">现任岗位</p>
+        {% if assignments %}
+        <ul class="position-list">
+            {% for a in assignments %}
+            <li>
+                {% if a.position %}{{ a.position.get_name_display }}{% else %}未分配岗位{% endif %}
+                {% if a.department %}<span class="muted"> · {{ a.department.name }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">暂无在任岗位</p>
+        {% endif %}
+        <p style="margin-top:16px; margin-bottom:0;"><a href="{% url 'club:org_structure' %}">查看完整组织架构</a></p>
+    </aside>
+</div>
+{% endblock %}

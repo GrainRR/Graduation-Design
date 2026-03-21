@@ -1,0 +1,30 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>系统首页</h2>
+<div class="stats">
+    <div class="stat-card">
+        <div class="label">公告数量</div>
+        <div class="value">{{ notices_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">进行中活动</div>
+        <div class="value">{{ activities_count }}</div>
+    </div>
+    {% if user.profile.role == 'club_admin' %}
+    <div class="stat-card">
+        <div class="label">待审批入社申请</div>
+        <div class="value">{{ pending_app_count }}</div>
+    </div>
+    {% endif %}
+    {% if user.profile.role == 'super_admin' %}
+    <div class="stat-card">
+        <div class="label">待审批成立社团申请</div>
+        <div class="value">{{ pending_club_creation_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">待审批活动发起</div>
+        <div class="value">{{ pending_activity_launch_count }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

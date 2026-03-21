@@ -1,0 +1,21 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>活动发起审批（高级管理员）</h2>
+<p class="muted">社长/副社长提交后，请在此通过或驳回。通过后方可发布活动。</p>
+<table>
+<tr><th>标题</th><th>时间</th><th>发起人</th><th>操作</th></tr>
+{% for a in activities %}
+<tr>
+  <td>{{ a.title }}</td>
+  <td>{{ a.start_time }} ~ {{ a.end_time }}</td>
+  <td>{% if a.owner %}{{ a.owner.profile.full_name|default:a.owner.username }}{% else %}-{% endif %}</td>
+  <td>
+    <form method="post" action="{% url 'club:activity_launch_review' a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见（可选）"><button type="submit">通过</button></form>
+    <form method="post" action="{% url 'club:activity_launch_review' a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="驳回原因"><button type="submit">驳回</button></form>
+  </td>
+</tr>
+{% empty %}
+<tr><td colspan="4" class="muted">暂无待审批活动</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

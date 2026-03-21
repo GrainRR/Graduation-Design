@@ -1,0 +1,37 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>活动管理</h2>
+<p class="muted">新建活动后请先点击「提交发起审批」，高级管理员通过后方可「发布」。</p>
+<p><a href="{% url 'club:activity_new' %}" class="btn">新建活动</a></p>
+<table>
+<tr>
+  <th>标题</th>
+  <th>活动状态</th>
+  <th>发起审批</th>
+  <th>报名</th>
+  <th>签到</th>
+  <th>操作</th>
+</tr>
+{% for a in activities %}
+<tr>
+  <td>{{ a.title }}</td>
+  <td>{{ a.get_status_display }}</td>
+  <td>{{ a.get_launch_approval_status_display }}{% if a.launch_review_comment and a.launch_approval_status == 'rejected' %}<br><span class="muted">{{ a.launch_review_comment }}</span>{% endif %}</td>
+  <td>{{ a.reg_count }}</td>
+  <td>{{ a.checkin_count }}</td>
+  <td>
+    <a href="{% url 'club:activity_edit' a.id %}">编辑</a>
+    {% if a.launch_approval_status == 'not_submitted' or a.launch_approval_status == 'rejected' %}
+    <form method="post" action="{% url 'club:activity_submit_launch' a.id %}" style="display:inline;">{% csrf_token %}<button type="submit">提交发起审批</button></form>
+    {% endif %}
+    {% if a.launch_approval_status == 'approved' and a.status == 'draft' %}
+    <a href="{% url 'club:activity_action' a.id 'publish' %}">发布</a>
+    {% endif %}
+    <a href="{% url 'club:activity_action' a.id 'cancel' %}">取消</a>
+    <a href="{% url 'club:activity_action' a.id 'finish' %}">结束</a>
+    <a href="{% url 'club:activity_stats' a.id %}">统计</a>
+  </td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

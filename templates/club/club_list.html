@@ -1,0 +1,22 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>社团列表</h2>
+<p class="muted">点击卡片查看社团简介与图标</p>
+<div class="club-grid">
+{% for c in clubs %}
+<a class="club-card" href="{% url 'club:club_detail' c.pk %}">
+    {% if c.logo_url %}
+    <div class="club-card-logo"><img src="{{ c.logo_url }}" alt=""></div>
+    {% else %}
+    <div class="club-card-logo placeholder">无图标</div>
+    {% endif %}
+    <div class="club-card-body">
+        <strong>{{ c.name }}</strong>
+        <p class="muted club-card-intro">{{ c.intro|truncatewords:28|default:"暂无简介" }}</p>
+    </div>
+</a>
+{% empty %}
+<p class="muted">暂无社团数据</p>
+{% endfor %}
+</div>
+{% endblock %}

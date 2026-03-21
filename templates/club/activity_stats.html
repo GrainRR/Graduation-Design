@@ -1,0 +1,7 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>活动统计 - {{ activity.title }}</h2>
+<p>报名人数：{{ reg_count }}</p>
+<p>到场人数：{{ checkin_count }}</p>
+<p>到场率：{{ rate }}%</p>
+{% endblock %}

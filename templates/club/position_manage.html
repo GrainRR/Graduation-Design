@@ -1,0 +1,10 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>岗位管理</h2>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">新增岗位</button></form>
+<table><tr><th>部门</th><th>岗位</th><th>要求</th><th>状态</th></tr>
+{% for p in positions %}
+<tr><td>{{ p.department }}</td><td>{{ p.get_name_display }}</td><td>{{ p.requirements }}</td><td>{{ p.is_active|yesno:"启用,停用" }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

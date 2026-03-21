@@ -1,0 +1,6 @@
+﻿{% extends 'club/base.html' %}
+{% block content %}
+<h2>{{ notice.title }}</h2>
+<p class="muted">发布时间：{{ notice.publish_at }}</p>
+<div>{{ notice.content|linebreaks }}</div>
+{% endblock %}

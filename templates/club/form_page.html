@@ -1,0 +1,5 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>{{ title }}</h2>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">提交</button></form>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>部门管理</h2>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">新增部门</button></form>
+<table><tr><th>名称</th><th>描述</th><th>状态</th></tr>
+{% for d in departments %}
+<tr><td>{{ d.name }}</td><td>{{ d.description }}</td><td>{{ d.is_active|yesno:"启用,停用" }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}
