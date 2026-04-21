@@ -1,20 +1,79 @@
 {% extends 'club/base.html' %}
 {% block content %}
 <h2>社团列表</h2>
-<p class="muted">点击卡片查看社团简介与图标</p>
-<div class="club-grid">
-{% for c in clubs %}
-<a class="club-card" href="{% url 'club:club_detail' c.pk %}">
-    {% if c.logo_url %}
+<p class="muted">{% if is_super_admin %}卡片最右侧可「编辑社团信息」（名称、简介、公告、部门与人员职务、入社审批）或「撤销社团」。{% else %}同一行可浏览简介、近期公告与成员规模；点击卡片进入工作区或入社申请。{% endif %}</p>
+<div class="club-grid club-grid-wide">
+{% for row in card_rows %}
+{% with c=row.club %}
+{% if is_super_admin %}
+<div class="club-card club-card-horizontal club-card-static club-card-super">
+    {% if c.logo %}
+    <div class="club-card-logo"><img src="{{ c.logo.url }}" alt="{{ c.name }}"></div>
+    {% elif c.logo_url %}
     <div class="club-card-logo"><img src="{{ c.logo_url }}" alt=""></div>
     {% else %}
     <div class="club-card-logo placeholder">无图标</div>
     {% endif %}
-    <div class="club-card-body">
+    <div class="club-card-main">
         <strong>{{ c.name }}</strong>
-        <p class="muted club-card-intro">{{ c.intro|truncatewords:28|default:"暂无简介" }}</p>
+        <p class="muted club-card-intro">{{ c.intro|default:"暂无简介"|truncatewords:40 }}</p>
     </div>
-</a>
+    <div class="club-card-notices">
+        <span class="club-card-col-title">通知公告</span>
+        {% if row.notices %}
+        <ul class="club-card-notice-list">
+            {% for n in row.notices %}
+            <li><a class="club-card-notice-title" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a><span class="muted">{{ n.publish_at|date:"m-d" }}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted club-card-intro" style="margin:4px 0 0;">暂无已发布公告</p>
+        {% endif %}
+    </div>
+    <div class="club-card-aside">
+        <span class="club-card-col-title">概况</span>
+        <p class="club-card-stat-line"><span class="muted">成员</span> {{ c.active_member_count }}</p>
+    </div>
+    <div class="club-card-super-actions">
+        <a class="btn" href="{% url 'club:club_info_manage' c.pk %}">编辑社团信息</a>
+        <a class="btn btn-danger" href="{% url 'club:super_admin_club_revoke' c.pk %}">撤销社团</a>
+    </div>
+</div>
+{% else %}
+<div class="club-card club-card-horizontal" style="position:relative;">
+    {% if row.has_pending_approval %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+    <a class="club-card-h-link" href="{{ row.card_url }}" aria-label="进入 {{ c.name }}">
+        {% if c.logo %}
+        <div class="club-card-logo"><img src="{{ c.logo.url }}" alt="{{ c.name }}"></div>
+        {% elif c.logo_url %}
+        <div class="club-card-logo"><img src="{{ c.logo_url }}" alt=""></div>
+        {% else %}
+        <div class="club-card-logo placeholder">无图标</div>
+        {% endif %}
+    </a>
+    <a class="club-card-h-link club-card-main" href="{{ row.card_url }}">
+        <strong>{{ c.name }}</strong>
+        <p class="muted club-card-intro">{{ c.intro|default:"暂无简介"|truncatewords:40 }}</p>
+    </a>
+    <div class="club-card-notices">
+        <span class="club-card-col-title">通知公告</span>
+        {% if row.notices %}
+        <ul class="club-card-notice-list">
+            {% for n in row.notices %}
+            <li><a class="club-card-notice-title" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a><span class="muted">{{ n.publish_at|date:"m-d" }}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted club-card-intro" style="margin:4px 0 0;">暂无已发布公告</p>
+        {% endif %}
+    </div>
+    <a class="club-card-h-link club-card-aside" href="{{ row.card_url }}">
+        <span class="club-card-col-title">概况</span>
+        <p class="club-card-stat-line"><span class="muted">成员</span> {{ c.active_member_count }}</p>
+    </a>
+</div>
+{% endif %}
+{% endwith %}
 {% empty %}
 <p class="muted">暂无社团数据</p>
 {% endfor %}

@@ -1,5 +1,36 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+{% if cancel_url %}
+<p class="page-back"><a class="btn" href="{{ cancel_url }}">返回</a></p>
+{% endif %}
+{% endblock %}
 {% block content %}
 <h2>{{ title }}</h2>
-<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">提交</button></form>
+<form method="post" class="admin-form-grid">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <ul class="errorlist">
+        {% for err in form.non_field_errors %}
+        <li>{{ err }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% for field in form %}
+    <div class="form-row">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field-body">
+            {{ field }}
+            {% if field.help_text %}
+            <span class="field-hint">{{ field.help_text }}</span>
+            {% endif %}
+            {{ field.errors }}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="form-actions">
+        <button type="submit">提交</button>
+    </div>
+</form>
 {% endblock %}

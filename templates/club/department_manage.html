@@ -1,10 +1,105 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
+{% endblock %}
 {% block content %}
-<h2>部门管理</h2>
-<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">新增部门</button></form>
-<table><tr><th>名称</th><th>描述</th><th>状态</th></tr>
-{% for d in departments %}
-<tr><td>{{ d.name }}</td><td>{{ d.description }}</td><td>{{ d.is_active|yesno:"启用,停用" }}</td></tr>
-{% endfor %}
+<h2>{% if can_manage %}部门管理{% else %}部门列表{% endif %}</h2>
+<p class="muted">{{ club.name }} — {% if can_manage %}新增部门时需同时指定负责人；并可设置部门联系方式。列表中可编辑部门信息、删除部门。{% else %}以下为各部门与负责人及联系方式信息。{% endif %}</p>
+
+{% if can_manage and create_form %}
+<div class="section-card" style="margin-bottom:18px;">
+    <h3 style="margin-top:0;">新增部门</h3>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_department">
+        {{ create_form.as_p }}
+        <button type="submit">新增并任命负责人</button>
+    </form>
+</div>
+{% endif %}
+
+<h3>部门列表</h3>
+<table class="dept-manage-table">
+    <tr>
+        <th>部门</th>
+        <th>当前负责人</th>
+        <th>操作</th>
+    </tr>
+    {% for row in department_rows %}
+    <tr>
+        <td class="dept-info-cell">
+            <div class="dept-info-head">
+                {% if row.department.logo %}
+                <div class="dept-info-logo"><img src="{{ row.department.logo.url }}" alt=""></div>
+                {% else %}
+                <div class="dept-info-logo placeholder">无标志</div>
+                {% endif %}
+                <strong class="dept-info-name">{{ row.department.name }}</strong>
+            </div>
+            <div class="dept-info-desc muted">
+                {{ row.department.description|default:"暂无简介"|linebreaks }}
+                <div class="muted" style="margin-top:6px;font-size:13px;">
+                    联系方式：{{ row.department.contact|default:"—" }}
+                </div>
+            </div>
+        </td>
+        <td>{% if row.head %}{{ row.head.display_name }}{% else %}<span class="muted">未任命</span>{% endif %}</td>
+        <td class="dept-ops-cell">
+            {% if can_manage %}
+            <div class="dept-ops-stack">
+                <details class="dept-op-details">
+                    <summary class="btn btn-sm btn-secondary">编辑部门信息</summary>
+                    <div class="dept-op-panel">
+                        {% if row.can_upload_logo %}
+                        <p class="muted" style="margin:0 0 8px;font-size:13px;">部门标志：</p>
+                        <a class="btn btn-sm" href="{% url 'club:department_logo_edit' club.pk row.department.pk %}">
+                            {% if row.department.logo %}修改标志{% else %}上传标志{% endif %}
+                        </a>
+                        <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;">
+                        {% endif %}
+
+                        <p class="muted" style="margin-top:0;font-size:13px;">
+                            在下列在籍成员中选择负责人：
+                        </p>
+                        {% if candidates %}
+                        <form method="post" class="dept-head-pick-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="change_department_head">
+                            <input type="hidden" name="department_id" value="{{ row.department.pk }}">
+                            <ul class="member-pick-list">
+                                {% for c in candidates %}
+                                <li>
+                                    <label class="member-pick-label">
+                                        <input type="radio" name="head_profile_id" value="{{ c.id }}" {% if row.head and row.head.pk == c.pk %}checked{% endif %} required>
+                                        <span>{{ c.display_name }}</span>
+                                        <span class="muted">{{ c.student_id|default:'—' }}</span>
+                                    </label>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <button type="submit" class="btn btn-sm">确认负责人</button>
+                        </form>
+                        {% else %}
+                        <p class="muted" style="margin:0;">暂无可选成员</p>
+                        {% endif %}
+                    </div>
+                </details>
+                <form method="post" class="dept-delete-form" onsubmit="return confirm('确定删除该部门？已关联的任职记录将解除。');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_department">
+                    <input type="hidden" name="department_id" value="{{ row.department.pk }}">
+                    <button type="submit" class="btn btn-sm btn-danger-outline">删除部门</button>
+                </form>
+            </div>
+            {% elif row.can_upload_logo %}
+            <a class="btn btn-sm" href="{% url 'club:department_logo_edit' club.pk row.department.pk %}">{% if row.department.logo %}修改标志{% else %}上传标志{% endif %}</a>
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="muted">暂无部门（「管理层」为系统保留，不在此列表显示）</td></tr>
+    {% endfor %}
 </table>
 {% endblock %}

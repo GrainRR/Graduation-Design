@@ -1,3 +1,377 @@
-from django.test import TestCase
+from datetime import timedelta
 
-# Create your tests here.
+from urllib.parse import urlencode
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import (
+    Activity,
+    ActivityLaunchApprovalStatus,
+    ActivityStatus,
+    ApplicationStatus,
+    ClubInfo,
+    ClubMembership,
+    Department,
+    JoinApplication,
+    MemberAssignment,
+    MemberProfile,
+    Position,
+    RoleChoices,
+)
+
+User = get_user_model()
+
+
+class MyClubWorkspaceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="leader", password="pass12345")
+        self.profile = MemberProfile.objects.create(
+            user=self.user,
+            student_id="20230010",
+            role=RoleChoices.CLUB_ADMIN,
+        )
+
+        self.club_a = ClubInfo.objects.create(name="摄影社")
+        self.club_b = ClubInfo.objects.create(name="动漫社")
+        self.profile.club = self.club_a
+        self.profile.save(update_fields=["club"])
+
+        ClubMembership.objects.create(profile=self.profile, club=self.club_a)
+        ClubMembership.objects.create(profile=self.profile, club=self.club_b)
+
+        manage_department = Department.objects.create(club=self.club_a, name="管理层")
+        president = Position.objects.create(department=manage_department, name=Position.NameChoices.PRESIDENT)
+        MemberAssignment.objects.create(
+            profile=self.profile,
+            department=manage_department,
+            position=president,
+            is_active=True,
+        )
+
+        self.client.force_login(self.user)
+
+    def test_my_clubs_lists_all_joined_clubs_with_identity_tags(self):
+        response = self.client.get(reverse("club:my_clubs"))
+
+        self.assertContains(response, "摄影社")
+        self.assertContains(response, "动漫社")
+        self.assertContains(response, "社长")
+        self.assertContains(response, "成员")
+
+    def test_manage_page_is_scoped_by_club_identity(self):
+        can_manage = self.client.get(reverse("club:club_info_manage", args=[self.club_a.pk]))
+        cannot_manage = self.client.get(reverse("club:club_info_manage", args=[self.club_b.pk]))
+
+        self.assertEqual(can_manage.status_code, 200)
+        self.assertEqual(cannot_manage.status_code, 403)
+
+
+class JoinApplicationMembershipTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(username="admin", password="pass12345")
+        self.admin_profile = MemberProfile.objects.create(
+            user=self.admin_user,
+            student_id="A0001",
+            role=RoleChoices.CLUB_ADMIN,
+        )
+
+        self.managed_club = ClubInfo.objects.create(name="志愿者协会")
+        self.original_club = ClubInfo.objects.create(name="吉他社")
+        self.admin_profile.club = self.managed_club
+        self.admin_profile.save(update_fields=["club"])
+        ClubMembership.objects.create(profile=self.admin_profile, club=self.managed_club)
+
+        manage_department = Department.objects.create(club=self.managed_club, name="管理层")
+        vice = Position.objects.create(department=manage_department, name=Position.NameChoices.VICE_PRESIDENT)
+        MemberAssignment.objects.create(
+            profile=self.admin_profile,
+            department=manage_department,
+            position=vice,
+            is_active=True,
+        )
+
+        self.member_user = User.objects.create_user(username="20230100", password="pass12345")
+        self.member_profile = MemberProfile.objects.create(
+            user=self.member_user,
+            student_id="20230100",
+            role=RoleChoices.MEMBER,
+            club=self.original_club,
+        )
+        ClubMembership.objects.create(profile=self.member_profile, club=self.original_club)
+
+        self.application = JoinApplication.objects.create(
+            club=self.managed_club,
+            nickname="小成",
+            student_id=self.member_profile.student_id,
+            phone="13900001111",
+            email="member@example.com",
+            reason="希望加入志愿者协会",
+        )
+
+        self.client.force_login(self.admin_user)
+
+    def test_approve_join_application_adds_membership_without_overwriting_primary_club(self):
+        response = self.client.post(
+            reverse("club:club_application_review", args=[self.managed_club.pk, self.application.pk, "approve"]),
+            {"comment": "通过"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.application.refresh_from_db()
+        self.member_profile.refresh_from_db()
+
+        self.assertEqual(self.application.status, ApplicationStatus.APPROVED)
+        self.assertTrue(
+            ClubMembership.objects.filter(profile=self.member_profile, club=self.managed_club, is_active=True).exists()
+        )
+        self.assertEqual(self.member_profile.club, self.original_club)
+
+
+class ActivityLaunchApprovalTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="activity_leader", password="pass12345")
+        self.profile = MemberProfile.objects.create(
+            user=self.user,
+            student_id="20230088",
+            role=RoleChoices.CLUB_ADMIN,
+        )
+        self.club = ClubInfo.objects.create(name="跑步社")
+        self.profile.club = self.club
+        self.profile.save(update_fields=["club"])
+        ClubMembership.objects.create(profile=self.profile, club=self.club)
+
+        manage_department = Department.objects.create(club=self.club, name="管理层")
+        president = Position.objects.create(department=manage_department, name=Position.NameChoices.PRESIDENT)
+        MemberAssignment.objects.create(
+            profile=self.profile,
+            department=manage_department,
+            position=president,
+            is_active=True,
+        )
+
+        now = timezone.now()
+        self.activity = Activity.objects.create(
+            club=self.club,
+            title="晨跑活动",
+            description="操场集合晨跑",
+            location="东操场",
+            start_time=now + timedelta(days=2),
+            end_time=now + timedelta(days=2, hours=2),
+            signup_deadline=now + timedelta(days=1),
+            status=ActivityStatus.DRAFT,
+            owner=self.user,
+            launch_approval_status=ActivityLaunchApprovalStatus.NOT_SUBMITTED,
+        )
+
+        self.client.force_login(self.user)
+
+    def test_submit_launch_approval_shows_submitted_hint_on_manage_page(self):
+        response = self.client.post(
+            reverse("club:club_activity_submit_launch", args=[self.club.pk, self.activity.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.launch_approval_status, ActivityLaunchApprovalStatus.PENDING_SUPER)
+        self.assertContains(response, "已发起审批")
+        self.assertContains(response, "撤回活动审批")
+
+    def test_withdraw_pending_activity_launch_request_removes_it_from_super_admin_list(self):
+        super_user = User.objects.create_user(username="superadmin_withdraw", password="pass12345")
+        MemberProfile.objects.create(
+            user=super_user,
+            student_id="SUPER003",
+            role=RoleChoices.SUPER_ADMIN,
+        )
+        self.activity.launch_approval_status = ActivityLaunchApprovalStatus.PENDING_SUPER
+        self.activity.save(update_fields=["launch_approval_status"])
+
+        response = self.client.post(
+            reverse("club:club_activity_withdraw_launch", args=[self.club.pk, self.activity.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.launch_approval_status, ActivityLaunchApprovalStatus.NOT_SUBMITTED)
+        self.assertContains(response, "已撤回活动审批")
+
+        self.client.force_login(super_user)
+        response = self.client.get(reverse("club:activity_launch_approval_manage"))
+        self.assertNotContains(response, "晨跑活动")
+
+    def test_resubmit_rejected_activity_clears_old_review_request(self):
+        super_user = User.objects.create_user(username="superadmin_reject", password="pass12345")
+        MemberProfile.objects.create(
+            user=super_user,
+            student_id="SUPER002",
+            role=RoleChoices.SUPER_ADMIN,
+        )
+        self.activity.launch_approval_status = ActivityLaunchApprovalStatus.REJECTED
+        self.activity.launch_review_comment = "请补充活动说明"
+        self.activity.launch_reviewed_by = super_user
+        self.activity.launch_reviewed_at = timezone.now()
+        self.activity.save(
+            update_fields=[
+                "launch_approval_status",
+                "launch_review_comment",
+                "launch_reviewed_by",
+                "launch_reviewed_at",
+            ]
+        )
+
+        response = self.client.post(
+            reverse("club:club_activity_submit_launch", args=[self.club.pk, self.activity.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.launch_approval_status, ActivityLaunchApprovalStatus.PENDING_SUPER)
+        self.assertEqual(self.activity.launch_review_comment, "")
+        self.assertIsNone(self.activity.launch_reviewed_by)
+        self.assertIsNone(self.activity.launch_reviewed_at)
+
+    def test_edit_pending_activity_requires_resubmission_and_replaces_old_pending_request(self):
+        super_user = User.objects.create_user(username="superadmin", password="pass12345")
+        MemberProfile.objects.create(
+            user=super_user,
+            student_id="SUPER001",
+            role=RoleChoices.SUPER_ADMIN,
+        )
+        self.activity.launch_approval_status = ActivityLaunchApprovalStatus.PENDING_SUPER
+        self.activity.save(update_fields=["launch_approval_status"])
+
+        self.client.force_login(super_user)
+        response = self.client.get(reverse("club:activity_launch_approval_manage"))
+        self.assertContains(response, "晨跑活动")
+
+        self.client.force_login(self.user)
+        edit_response = self.client.post(
+            reverse("club:club_activity_edit", args=[self.club.pk, self.activity.pk]),
+            {
+                "title": "晨跑活动（修改版）",
+                "description": self.activity.description,
+                "location": self.activity.location,
+                "start_time": self.activity.start_time.strftime("%Y-%m-%dT%H:%M"),
+                "end_time": self.activity.end_time.strftime("%Y-%m-%dT%H:%M"),
+                "signup_deadline": self.activity.signup_deadline.strftime("%Y-%m-%dT%H:%M"),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(edit_response.status_code, 200)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.title, "晨跑活动（修改版）")
+        self.assertEqual(self.activity.launch_approval_status, ActivityLaunchApprovalStatus.NOT_SUBMITTED)
+        self.assertContains(edit_response, "活动已更新，请重新提交审批")
+
+        self.client.force_login(super_user)
+        response = self.client.get(reverse("club:activity_launch_approval_manage"))
+        self.assertNotContains(response, "晨跑活动")
+        self.assertNotContains(response, "晨跑活动（修改版）")
+
+        self.client.force_login(self.user)
+        self.client.post(reverse("club:club_activity_submit_launch", args=[self.club.pk, self.activity.pk]))
+
+        self.client.force_login(super_user)
+        response = self.client.get(reverse("club:activity_launch_approval_manage"))
+        self.assertContains(response, "晨跑活动（修改版）")
+        self.assertNotContains(response, ">晨跑活动<")
+
+    def test_cancel_activity_clears_pending_request_from_super_admin_list(self):
+        super_user = User.objects.create_user(username="superadmin_cancel", password="pass12345")
+        MemberProfile.objects.create(
+            user=super_user,
+            student_id="SUPER004",
+            role=RoleChoices.SUPER_ADMIN,
+        )
+        self.activity.launch_approval_status = ActivityLaunchApprovalStatus.PENDING_SUPER
+        self.activity.save(update_fields=["launch_approval_status"])
+
+        response = self.client.post(
+            reverse("club:club_activity_action", args=[self.club.pk, self.activity.pk, "cancel"]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.status, ActivityStatus.CANCELED)
+        self.assertEqual(self.activity.launch_approval_status, ActivityLaunchApprovalStatus.NOT_PASSED)
+
+        self.client.force_login(super_user)
+        response = self.client.get(reverse("club:activity_launch_approval_manage"))
+        self.assertNotContains(response, "晨跑活动")
+
+    def test_cancel_activity_when_launch_approved_keeps_approved_status(self):
+        self.activity.launch_approval_status = ActivityLaunchApprovalStatus.APPROVED
+        self.activity.save(update_fields=["launch_approval_status"])
+
+        response = self.client.post(
+            reverse("club:club_activity_action", args=[self.club.pk, self.activity.pk, "cancel"]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.status, ActivityStatus.CANCELED)
+        self.assertEqual(self.activity.launch_approval_status, ActivityLaunchApprovalStatus.APPROVED)
+
+
+class SuperAdminUserManageTests(TestCase):
+    def setUp(self):
+        self.super_user = User.objects.create_user(username="sa_um", password="oldpass")
+        self.super_profile = MemberProfile.objects.create(
+            user=self.super_user,
+            student_id="SA001",
+            role=RoleChoices.SUPER_ADMIN,
+        )
+        self.member_user = User.objects.create_user(username="m2023", password="mpass")
+        self.member_profile = MemberProfile.objects.create(
+            user=self.member_user,
+            student_id="20239999",
+            role=RoleChoices.MEMBER,
+        )
+        self.client.force_login(self.super_user)
+
+    def test_bulk_update_username(self):
+        url = reverse("club:super_admin_user_manage")
+        uid_m = self.member_user.pk
+        uid_s = self.super_user.pk
+        self.client.post(
+            url,
+            {
+                "action": "bulk_update",
+                f"username_{uid_m}": "m2023_renamed",
+                f"password_{uid_m}": "",
+                f"username_{uid_s}": "sa_um",
+                f"password_{uid_s}": "",
+            },
+            follow=True,
+        )
+        self.member_user.refresh_from_db()
+        self.assertEqual(self.member_user.username, "m2023_renamed")
+
+    def test_bulk_delete_removes_member_not_super_admin(self):
+        url = reverse("club:super_admin_user_manage")
+        uid_m = self.member_user.pk
+        uid_s = self.super_user.pk
+        body = urlencode(
+            [
+                ("action", "bulk_delete"),
+                ("delete_id", str(uid_m)),
+                ("delete_id", str(uid_s)),
+            ]
+        )
+        self.client.post(
+            url,
+            body,
+            content_type="application/x-www-form-urlencoded",
+            follow=True,
+        )
+        self.assertFalse(User.objects.filter(pk=uid_m).exists())
+        self.assertTrue(User.objects.filter(pk=uid_s).exists())

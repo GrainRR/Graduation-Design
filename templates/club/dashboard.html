@@ -2,10 +2,12 @@
 {% block content %}
 <h2>系统首页</h2>
 <div class="stats">
+    {% if user.profile.role != 'super_admin' %}
     <div class="stat-card">
         <div class="label">公告数量</div>
         <div class="value">{{ notices_count }}</div>
     </div>
+    {% endif %}
     <div class="stat-card">
         <div class="label">进行中活动</div>
         <div class="value">{{ activities_count }}</div>

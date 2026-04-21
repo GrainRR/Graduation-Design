@@ -1,0 +1,37 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
+{% endblock %}
+{% block content %}
+<h2>成员列表</h2>
+<p class="muted">{{ club.name }} 全体成员只读列表；该页面仅查看，不提供任命或编辑能力。</p>
+
+<table>
+    <tr>
+        <th>账号</th>
+        <th>学号</th>
+        <th>申请昵称</th>
+        <th>申请电话</th>
+        <th>申请邮箱</th>
+        <th>申请原因</th>
+        <th>职务标签</th>
+    </tr>
+    {% for row in member_rows %}
+    <tr>
+        <td>{{ row.profile.display_name }}</td>
+        <td class="muted">{{ row.profile.student_id|default:"—" }}</td>
+        <td>{{ row.join_nickname }}</td>
+        <td>{{ row.join_phone }}</td>
+        <td>{{ row.join_email }}</td>
+        <td class="muted" style="max-width:280px;">{{ row.join_reason|truncatechars:60 }}</td>
+        <td>
+            {% for t in row.tags %}
+            <span class="role-tag {{ t.tag_class }}">{{ t.label }}</span>
+            {% endfor %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="muted">暂无在籍成员</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}

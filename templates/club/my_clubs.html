@@ -1,0 +1,31 @@
+{% extends 'club/base.html' %}
+{% block content %}
+<h2>我的社团</h2>
+<p class="muted">点击社团卡片进入对应社团工作区，按你的身份查看或管理功能。</p>
+
+<div class="club-grid">
+{% for row in club_rows %}
+<a class="club-card" href="{% url 'club:my_club_detail' row.club.pk %}" style="position:relative;">
+    {% if row.has_pending_approval %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+    {% if row.club.logo %}
+    <div class="club-card-logo"><img src="{{ row.club.logo.url }}" alt="{{ row.club.name }}"></div>
+    {% elif row.club.logo_url %}
+    <div class="club-card-logo"><img src="{{ row.club.logo_url }}" alt=""></div>
+    {% else %}
+    <div class="club-card-logo placeholder">无图标</div>
+    {% endif %}
+    <div class="club-card-body" style="flex:1;">
+        <div class="club-card-head">
+            <strong>{{ row.club.name }}</strong>
+            {% if row.identity_meta %}
+            <span class="role-tag {{ row.identity_meta.tag_class }}">{{ row.identity_meta.label }}</span>
+            {% endif %}
+        </div>
+        <p class="muted club-card-intro">{{ row.club.intro|truncatewords:28|default:"暂无简介" }}</p>
+    </div>
+</a>
+{% empty %}
+<p class="muted">你还没有加入任何社团。</p>
+{% endfor %}
+</div>
+{% endblock %}

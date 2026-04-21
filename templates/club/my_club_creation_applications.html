@@ -1,4 +1,7 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
+{% endblock %}
 {% block content %}
 <h2>我的成立社团申请</h2>
 <table><tr><th>社团名称</th><th>状态</th><th>审核意见</th><th>提交时间</th></tr>

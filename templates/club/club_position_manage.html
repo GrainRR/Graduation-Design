@@ -1,0 +1,102 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
+{% endblock %}
+{% block content %}
+<h2>人员管理</h2>
+<p class="muted">{{ club.name }} 全体成员列表；不同颜色标签表示职务（部门负责人显示为「某某部门负责人」）。</p>
+
+{% if is_super_admin_positions %}
+<div class="section-card" style="margin-bottom:18px;">
+    <h3 style="margin-top:0;">高级管理员 · 职务任命</h3>
+    <p class="muted" style="margin-top:0;">通过下拉栏任命社长、副社长；社长默认选中现任社长，副社长列表将现任副社长排在前面（可多选，不选表示清空所有副社长）。</p>
+    <form method="post" style="margin-bottom:20px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="appoint_president">
+        <p style="margin-bottom:8px;">
+            <label for="id_president_profile_id"><strong>任命社长</strong></label><br>
+            <select id="id_president_profile_id" name="president_profile_id" required style="min-width:280px; margin-top:6px;">
+                {% if not president_assignment %}
+                <option value="" disabled selected>请选择成员</option>
+                {% endif %}
+                {% for c in president_candidates_ordered %}
+                <option value="{{ c.id }}" {% if president_assignment and president_assignment.profile_id == c.id %}selected{% endif %}>{{ c.display_name }}（{{ c.student_id|default:'-' }}）</option>
+                {% endfor %}
+            </select>
+        </p>
+        <button type="submit" class="btn">保存社长</button>
+    </form>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="appoint_vice_set">
+        <p style="margin-bottom:8px;">
+            <label for="id_vice_profile_ids"><strong>任命副社长</strong></label><br>
+            <select id="id_vice_profile_ids" name="vice_profile_ids" multiple size="{{ vice_select_size }}" style="min-width:280px; margin-top:6px;">
+                {% for c in vice_candidates_ordered %}
+                <option value="{{ c.id }}" {% if c.id in vice_selected_profile_ids %}selected{% endif %}>{{ c.display_name }}（{{ c.student_id|default:'-' }}）</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p class="muted" style="font-size:13px; margin:0 0 10px;">按住 Ctrl（Windows）或 ⌘（Mac）点击可多选或取消；提交后副社长职务与所选成员一致。</p>
+        <button type="submit" class="btn">保存副社长</button>
+    </form>
+</div>
+{% elif is_president %}
+<div class="section-card" style="margin-bottom:18px;">
+    <h3 style="margin-top:0;">社长操作</h3>
+    <form method="post" style="margin-bottom:12px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="appoint_vice">
+        <p>
+            <label>任命副社长</label>
+            <select name="vice_profile_id" required>
+                <option value="">请选择成员</option>
+                {% for c in candidates %}
+                <option value="{{ c.id }}">{{ c.display_name }}（{{ c.student_id|default:'-' }}）</option>
+                {% endfor %}
+            </select>
+        </p>
+        <button type="submit">任命为副社长</button>
+    </form>
+    <form method="post" action="{% url 'club:club_leadership_transfer' club.pk %}">
+        {% csrf_token %}
+        <button type="submit">让位给当前副社长</button>
+    </form>
+</div>
+{% else %}
+<div class="section-card muted" style="margin-bottom:18px;">
+    <p style="margin:0;">当前社长：{% if president_assignment %}{{ president_assignment.profile.display_name }}{% else %}未设置{% endif %} · 副社长：{% for va in vice_assignments %}{{ va.profile.display_name }}{% if not forloop.last %}、{% endif %}{% empty %}未设置{% endfor %}</p>
+    <p style="margin:8px 0 0;">仅社长可任命副社长或执行让位。</p>
+</div>
+{% endif %}
+
+<h3>成员列表</h3>
+<table>
+    <tr>
+        <th>账号</th>
+        <th>学号</th>
+        <th>申请昵称</th>
+        <th>申请电话</th>
+        <th>申请邮箱</th>
+        <th>申请原因</th>
+        <th>职务标签</th>
+    </tr>
+    {% for row in member_rows %}
+    <tr>
+        <td>{{ row.profile.display_name }}</td>
+        <td class="muted">{{ row.profile.student_id|default:"—" }}</td>
+        <td>{{ row.join_nickname }}</td>
+        <td>{{ row.join_phone }}</td>
+        <td>{{ row.join_email }}</td>
+        <td class="muted" style="max-width:280px;">{{ row.join_reason|truncatechars:60 }}</td>
+        <td>
+            {% for t in row.tags %}
+            <span class="role-tag {{ t.tag_class }}">{{ t.label }}</span>
+            {% endfor %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="muted">暂无在籍成员</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}

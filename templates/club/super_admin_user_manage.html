@@ -1,0 +1,138 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
+{% endblock %}
+{% block content %}
+<h2>用户管理（高级管理员）</h2>
+
+<div class="stack-grid">
+    <div class="section-card">
+        <h3>单个新增</h3>
+        <form method="post" class="admin-form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_single">
+            <div class="form-row">
+                <label for="{{ create_form.username.id_for_label }}">用户名</label>
+                <div class="field-body">
+                    {{ create_form.username }}
+                    <span class="field-hint">可选；留空则登录用户名与学号相同</span>
+                    {{ create_form.username.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="{{ create_form.student_id.id_for_label }}">学号</label>
+                <div class="field-body">
+                    {{ create_form.student_id }}
+                    {{ create_form.student_id.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="{{ create_form.password.id_for_label }}">密码</label>
+                <div class="field-body">
+                    {{ create_form.password }}
+                    <span class="field-hint">可选；留空则默认与学号相同</span>
+                    {{ create_form.password.errors }}
+                </div>
+            </div>
+            {% if create_form.non_field_errors %}
+            <div class="form-row">
+                <span></span>
+                <div class="field-body">{{ create_form.non_field_errors }}</div>
+            </div>
+            {% endif %}
+            <div class="form-actions">
+                <button type="submit">新增账号</button>
+            </div>
+        </form>
+    </div>
+    <div class="section-card">
+        <h3>学号区间批量新增</h3>
+        <form method="post" class="admin-form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_batch">
+            <div class="form-row">
+                <label for="{{ batch_form.student_id_start.id_for_label }}">起始学号</label>
+                <div class="field-body">
+                    {{ batch_form.student_id_start }}
+                    {{ batch_form.student_id_start.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="{{ batch_form.student_id_end.id_for_label }}">结束学号</label>
+                <div class="field-body">
+                    {{ batch_form.student_id_end }}
+                    {{ batch_form.student_id_end.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="{{ batch_form.password.id_for_label }}">统一密码</label>
+                <div class="field-body">
+                    {{ batch_form.password }}
+                    <span class="field-hint">可选；留空则每个账号密码与本学号相同</span>
+                    {{ batch_form.password.errors }}
+                </div>
+            </div>
+            {% if batch_form.non_field_errors %}
+            <div class="form-row">
+                <span></span>
+                <div class="field-body">{{ batch_form.non_field_errors }}</div>
+            </div>
+            {% endif %}
+            <div class="form-actions">
+                <button type="submit">批量新增</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form method="post" class="user-manage-users-form">
+    {% csrf_token %}
+    <div class="users-table-toolbar">
+        <h3>全部用户</h3>
+        <div class="users-table-toolbar-actions">
+            <button type="submit" name="action" value="bulk_update" class="btn btn-secondary">保存修改</button>
+            <button type="submit" name="action" value="bulk_delete" class="btn btn-danger"
+                onclick="var f=this.closest('form'); var n=f.querySelectorAll('input[name=delete_id]:checked').length; if(!n){ alert('请先勾选要删除的账号'); return false;} return confirm('确定删除选中的 '+n+' 个账号？此操作不可恢复。');">
+                批量删除
+            </button>
+        </div>
+    </div>
+    <table class="user-manage-table">
+        <tr>
+            <th>用户名</th>
+            <th>密码</th>
+            <th>学号</th>
+            <th>角色</th>
+            <th>所属社团</th>
+            <th>联系电话</th>
+            <th>邮箱</th>
+            <th class="col-select">选择</th>
+        </tr>
+        {% for p in users %}
+        <tr>
+            <td>
+                <input type="text" name="username_{{ p.user.pk }}" value="{{ p.user.username }}" maxlength="150" autocomplete="username">
+            </td>
+            <td class="cell-user-pw">
+                <input type="text" class="input-pw-fake" readonly tabindex="-1" value="已设置（加密存储）" title="数据库中为加密存储，无法显示明文">
+                <input type="password" name="password_{{ p.user.pk }}" placeholder="新密码，不改留空" maxlength="128" autocomplete="new-password">
+            </td>
+            <td>{{ p.student_id|default:'-' }}</td>
+            <td>{{ p.get_role_display }}</td>
+            <td>{{ p.club.name|default:'-' }}</td>
+            <td>{{ p.phone|default:'-' }}</td>
+            <td>{{ p.email|default:'-' }}</td>
+            <td class="col-select">
+                {% if p.user.pk == request.user.pk or p.role == 'super_admin' %}
+                <input type="checkbox" disabled title="不可删除本人或高级管理员账号">
+                {% else %}
+                <input type="checkbox" name="delete_id" value="{{ p.user.pk }}">
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="muted">暂无用户</td></tr>
+        {% endfor %}
+    </table>
+</form>
+{% endblock %}

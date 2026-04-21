@@ -1,6 +1,42 @@
-﻿{% extends 'club/base.html' %}
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back">
+    {% if notice.club %}
+        {% if user.profile.role == 'super_admin' %}
+        <a class="btn" href="{% url 'club:my_club_detail' notice.club.pk %}">返回社团工作区</a>
+        {% else %}
+        <a class="btn" href="{% url 'club:club_notice_list' notice.club.pk %}">返回公告列表</a>
+        {% endif %}
+    {% else %}
+    <a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a>
+    {% endif %}
+</p>
+{% endblock %}
 {% block content %}
 <h2>{{ notice.title }}</h2>
-<p class="muted">发布时间：{{ notice.publish_at }}</p>
+<p class="muted">{{ notice.club.name }} · 发布时间：{{ notice.publish_at|date:"Y-m-d H:i" }}</p>
+{% if notice_read_count is not None %}
+<style>
+.notice-read-bar { display: flex; align-items: center; gap: 14px; margin: 16px 0; flex-wrap: wrap; }
+.notice-read-ratio { font-weight: 600; color: var(--text); }
+.notice-read-btn { border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; font-family: inherit; }
+.notice-read-mark { background: #dc2626; color: #fff; }
+.notice-read-mark:hover { background: #b91c1c; }
+.notice-read-done { background: #2563eb; color: #fff; cursor: not-allowed; opacity: 0.95; }
+</style>
+<div class="notice-read-bar">
+    <span class="notice-read-ratio">已读 {{ notice_read_count }}/{{ notice_eligible_count }}</span>
+    {% if user.profile.role != 'super_admin' %}
+        {% if notice_user_has_read %}
+            <button type="button" class="notice-read-btn notice-read-done" disabled aria-disabled="true">已读</button>
+        {% elif notice_user_can_mark_read %}
+            <form method="post" action="{% url 'club:notice_mark_read' notice.pk %}" style="display:inline; margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="notice-read-btn notice-read-mark">标记为已读</button>
+            </form>
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}
 <div>{{ notice.content|linebreaks }}</div>
 {% endblock %}

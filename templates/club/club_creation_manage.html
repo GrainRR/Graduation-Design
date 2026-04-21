@@ -1,14 +1,19 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
+{% endblock %}
 {% block content %}
 <h2>成立社团审批（高级管理员）</h2>
 <table><tr><th>申请人</th><th>社团名称</th><th>理由</th><th>状态</th><th>操作</th></tr>
 {% for a in apps %}
 <tr>
-  <td>{{ a.applicant.full_name }}</td><td>{{ a.club_name }}</td><td>{{ a.reason }}</td><td>{{ a.get_status_display }}</td>
-  <td>
-    <form method="post" action="{% url 'club:club_creation_review' a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
-    <form method="post" action="{% url 'club:club_creation_review' a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
-    <form method="post" action="{% url 'club:club_creation_review' a.id 'return' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>
+  <td>{{ a.applicant.display_name }}</td><td>{{ a.club_name }}</td><td>{{ a.reason }}</td><td>{{ a.get_status_display }}</td>
+  <td class="cell-actions">
+    <div class="op-group op-group--with-input">
+    <form method="post" action="{% url 'club:club_creation_review' a.id 'approve' %}">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
+    <form method="post" action="{% url 'club:club_creation_review' a.id 'reject' %}">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
+    <form method="post" action="{% url 'club:club_creation_review' a.id 'return' %}">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>
+    </div>
   </td>
 </tr>
 {% endfor %}

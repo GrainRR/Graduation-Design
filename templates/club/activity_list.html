@@ -1,13 +1,22 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
+{% endblock %}
 {% block content %}
 <h2>活动列表</h2>
-<table><tr><th>标题</th><th>时间</th><th>地点</th><th>人数</th><th>操作</th></tr>
+<p class="muted">已汇总你加入社团中的可报名活动。</p>
+<table><tr><th>社团</th><th>标题</th><th>时间</th><th>地点</th><th>报名人数</th><th>操作</th></tr>
 {% for a in activities %}
 <tr>
-  <td>{{ a.title }}</td><td>{{ a.start_time }} ~ {{ a.end_time }}</td><td>{{ a.location }}</td>
-  <td>{{ a.registrations.count }}/{{ a.capacity }}</td>
+  <td>{{ a.club.name }}</td><td>{{ a.title }}</td><td>{{ a.start_time }} ~ {{ a.end_time }}</td><td>{{ a.location }}</td>
+  <td>{{ a.registrations.count }}</td>
   <td>
-    {% if a.id in my_reg_ids %}已报名{% else %}
+    {% if a.id in my_reg_ids %}
+    <form method="post" action="{% url 'club:activity_cancel' a.id %}" style="display:inline; margin:0;">
+      {% csrf_token %}
+      <button type="submit" class="btn-danger">取消报名</button>
+    </form>
+    {% else %}
     <a href="{% url 'club:activity_register' a.id %}">报名</a>
     {% endif %}
   </td>

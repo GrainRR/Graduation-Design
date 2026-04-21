@@ -1,0 +1,39 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
+{% endblock %}
+{% block content %}
+<h2>活动列表（高级管理员）</h2>
+<p class="muted">汇总全部社团中：发起审批待处理、发起审批已通过、或已结束的活动。对「待审批」「审批通过」发起状态的活动可撤销。</p>
+<table>
+<tr>
+  <th>社团</th>
+  <th>标题</th>
+  <th>活动说明</th>
+  <th>活动状态</th>
+  <th>发起审批</th>
+  <th>操作</th>
+</tr>
+{% for a in activities %}
+<tr>
+  <td>{{ a.club.name|default:'—' }}</td>
+  <td>{{ a.title }}</td>
+  <td><div class="activity-desc-cell">{{ a.description|default:'—'|linebreaksbr }}</div></td>
+  <td>{{ a.get_status_display }}</td>
+  <td>{{ a.get_launch_approval_status_display }}</td>
+  <td class="cell-actions">
+    <div class="op-group">
+    <a href="{% url 'club:activity_stats' a.id %}">统计</a>
+    {% if a.launch_approval_status == 'pending_super' or a.launch_approval_status == 'approved' %}
+      {% if a.status != 'canceled' and a.status != 'finished' %}
+      <form method="post" action="{% url 'club:super_admin_activity_revoke' a.id %}">{% csrf_token %}<button type="submit" class="btn-danger">撤销活动</button></form>
+      {% endif %}
+    {% endif %}
+    </div>
+  </td>
+</tr>
+{% empty %}
+<tr><td colspan="6" class="muted">暂无符合条件的活动</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

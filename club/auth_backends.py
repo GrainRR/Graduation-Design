@@ -12,6 +12,7 @@ class MultiAccountBackend(ModelBackend):
     """
 
     def authenticate(self, request, username=None, password=None, **kwargs):
+        """支持用户名/邮箱/手机号/学号四种账号口径登录。"""
         account = username or kwargs.get("account")
         if not account or not password:
             return None

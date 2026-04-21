@@ -1,17 +1,42 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
+{% endblock %}
 {% block content %}
 <h2>入社审批</h2>
-<table><tr><th>申请人</th><th>学号</th><th>电话</th><th>部门</th><th>状态</th><th>操作</th></tr>
-{% for a in apps %}
-<tr>
-  <td>{{ a.applicant_name }}</td><td>{{ a.student_id }}</td><td>{{ a.phone }}</td>
-  <td>{{ a.intended_department|default:'-' }}</td><td>{{ a.get_status_display }}</td>
-  <td>
-    <form method="post" action="{% url 'club:application_review' a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
-    <form method="post" action="{% url 'club:application_review' a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
-    <form method="post" action="{% url 'club:application_review' a.id 'return' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>
-  </td>
-</tr>
-{% endfor %}
+<p class="muted">{{ club.name }}</p>
+<table>
+    <tr>
+        <th>昵称</th>
+        <th>学号</th>
+        <th>电话</th>
+        <th>邮箱</th>
+        <th>申请原因</th>
+        <th>状态</th>
+        <th>操作</th>
+    </tr>
+    {% for a in apps %}
+    <tr>
+        <td>{{ a.nickname|default:'-' }}</td>
+        <td>{{ a.student_id }}</td>
+        <td>{{ a.phone }}</td>
+        <td>{{ a.email|default:'-' }}</td>
+        <td>{{ a.reason|default:'-'|truncatechars:40 }}</td>
+        <td>{{ a.get_status_display }}</td>
+        <td>
+            {% if user.profile.role == 'super_admin' %}
+            <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
+            <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
+            <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'return' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>
+            {% else %}
+            <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'approve' %}" style="display:inline;">{% csrf_token %}<button type="submit">通过</button></form>
+            <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'return' %}" style="display:inline;">{% csrf_token %}<button type="submit">退回</button></form>
+            {% endif %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="muted">暂无申请</td></tr>
+    {% endfor %}
 </table>
+
 {% endblock %}

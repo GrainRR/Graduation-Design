@@ -1,9 +1,12 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
+{% endblock %}
 {% block content %}
 <h2>我的入社申请</h2>
-<table><tr><th>姓名</th><th>意向部门</th><th>状态</th><th>审核意见</th><th>时间</th></tr>
+<table><tr><th>学号</th><th>昵称</th><th>社团</th><th>状态</th><th>审核意见</th><th>时间</th></tr>
 {% for a in apps %}
-<tr><td>{{ a.applicant_name }}</td><td>{{ a.intended_department|default:'-' }}</td><td>{{ a.get_status_display }}</td><td>{{ a.review_comment|default:'-' }}</td><td>{{ a.created_at }}</td></tr>
+<tr><td>{{ a.student_id }}</td><td>{{ a.nickname|default:'-' }}</td><td>{{ a.club.name }}</td><td>{{ a.get_status_display }}</td><td>{{ a.review_comment|default:'-' }}</td><td>{{ a.created_at }}</td></tr>
 {% endfor %}
 </table>
 {% endblock %}

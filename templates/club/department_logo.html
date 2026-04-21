@@ -1,0 +1,15 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back">
+    <a class="btn" href="{% url 'club:club_department_manage' club.pk %}">返回部门管理</a>
+</p>
+{% endblock %}
+{% block content %}
+<h2>上传部门标志</h2>
+<p class="muted">{{ club.name }} · {{ department.name }}</p>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">保存</button>
+</form>
+{% endblock %}

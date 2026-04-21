@@ -1,21 +1,70 @@
 {% extends 'club/base.html' %}
 {% block content %}
 <h2>活动发起审批（高级管理员）</h2>
-<p class="muted">社长/副社长提交后，请在此通过或驳回。通过后方可发布活动。</p>
+<p class="muted">社长/副社长提交后，请在此查看活动标题与说明，并通过或驳回。通过后方可由社团侧发布活动。</p>
+
+<h3 style="margin-top:22px;">待审批</h3>
+{% if pending_activities %}
+<p class="msg" style="margin-top:8px;">以下活动已发起审批，待您审核处理。</p>
+{% endif %}
 <table>
-<tr><th>标题</th><th>时间</th><th>发起人</th><th>操作</th></tr>
-{% for a in activities %}
 <tr>
+  <th>状态</th>
+  <th>社团</th>
+  <th>标题</th>
+  <th>活动说明</th>
+  <th>时间</th>
+  <th>发起人</th>
+  <th>操作</th>
+</tr>
+{% for a in pending_activities %}
+<tr>
+  <td><span class="role-tag pending-launch">待审批</span></td>
+  <td>{{ a.club.name|default:'—' }}</td>
   <td>{{ a.title }}</td>
+  <td><div class="activity-desc-cell">{{ a.description|default:'—'|linebreaksbr }}</div></td>
   <td>{{ a.start_time }} ~ {{ a.end_time }}</td>
-  <td>{% if a.owner %}{{ a.owner.profile.full_name|default:a.owner.username }}{% else %}-{% endif %}</td>
-  <td>
-    <form method="post" action="{% url 'club:activity_launch_review' a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见（可选）"><button type="submit">通过</button></form>
-    <form method="post" action="{% url 'club:activity_launch_review' a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="驳回原因"><button type="submit">驳回</button></form>
+  <td>{% if a.owner %}{{ a.owner.profile.display_name }}{% else %}—{% endif %}</td>
+  <td class="cell-actions">
+    <div class="op-group op-group--with-input">
+    <form method="post" action="{% url 'club:activity_launch_review' a.id 'approve' %}">{% csrf_token %}<input name="comment" placeholder="意见（可选）"><button type="submit">通过</button></form>
+    <form method="post" action="{% url 'club:activity_launch_review' a.id 'reject' %}">{% csrf_token %}<input name="comment" placeholder="驳回原因"><button type="submit">驳回</button></form>
+    </div>
   </td>
 </tr>
 {% empty %}
-<tr><td colspan="4" class="muted">暂无待审批活动</td></tr>
+<tr><td colspan="7" class="muted">暂无待审批活动</td></tr>
+{% endfor %}
+</table>
+
+<h3 style="margin-top:28px;">审批已通过</h3>
+<p class="muted">发起审批已通过的活动（最近 100 条），已标注「审批通过」。</p>
+<table>
+<tr>
+  <th>发起审批</th>
+  <th>社团</th>
+  <th>标题</th>
+  <th>活动说明</th>
+  <th>时间</th>
+  <th>发起人</th>
+  <th>审核信息</th>
+</tr>
+{% for a in approved_activities %}
+<tr>
+  <td><span class="role-tag approved-launch">审批通过</span></td>
+  <td>{{ a.club.name|default:'—' }}</td>
+  <td>{{ a.title }}</td>
+  <td><div class="activity-desc-cell">{{ a.description|default:'—'|linebreaksbr }}</div></td>
+  <td>{{ a.start_time }} ~ {{ a.end_time }}</td>
+  <td>{% if a.owner %}{{ a.owner.profile.display_name }}{% else %}—{% endif %}</td>
+  <td class="muted" style="font-size:13px;">
+    {% if a.launch_reviewed_at %}{{ a.launch_reviewed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+    {% if a.launch_reviewed_by %}<br>审核人：{{ a.launch_reviewed_by.profile.display_name }}{% endif %}
+    {% if a.launch_review_comment %}<br>意见：{{ a.launch_review_comment }}{% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr><td colspan="7" class="muted">暂无审批已通过记录</td></tr>
 {% endfor %}
 </table>
 {% endblock %}

@@ -20,15 +20,25 @@ class MemberProfile(models.Model):
         help_text="所属社团；高级管理员通常为空。",
     )
     role = models.CharField(max_length=20, choices=RoleChoices.choices, default=RoleChoices.MEMBER)
-    full_name = models.CharField(max_length=64)
     student_id = models.CharField(max_length=32, unique=True, null=True, blank=True)
     phone = models.CharField(max_length=32, unique=True, null=True, blank=True)
     email = models.EmailField(blank=True)
     college = models.CharField(max_length=64, blank=True)
     grade = models.CharField(max_length=32, blank=True)
 
+    def display_name(self):
+        """返回界面展示名：优先学号，其次用户名。"""
+        sid = (self.student_id or "").strip()
+        if sid:
+            return sid
+        user = getattr(self, "user", None)
+        if user and user.username:
+            return user.username
+        return f"用户{self.pk}"
+
     def __str__(self):
-        return f"{self.full_name}({self.get_role_display()})"
+        """用于管理后台与日志的成员可读标识。"""
+        return f"{self.display_name()}({self.get_role_display()})"
 
 
 class ClubInfo(models.Model):
@@ -36,11 +46,27 @@ class ClubInfo(models.Model):
     intro = models.TextField(blank=True)
     charter = models.TextField(blank=True)
     contact = models.CharField(max_length=128, blank=True)
-    logo_url = models.URLField(blank=True)
+    logo_url = models.URLField("标志图片链接", blank=True)
+    logo = models.ImageField("标志图片（上传）", upload_to="club_logos/", blank=True)
     principal = models.CharField(max_length=64, blank=True)
 
     def __str__(self):
+        """返回社团名作为对象字符串表示。"""
         return self.name
+
+
+class ClubMembership(models.Model):
+    profile = models.ForeignKey(MemberProfile, on_delete=models.CASCADE, related_name="memberships")
+    club = models.ForeignKey(ClubInfo, on_delete=models.CASCADE, related_name="memberships")
+    is_active = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("profile", "club")
+
+    def __str__(self):
+        """返回“成员-社团”关系的可读字符串。"""
+        return f"{self.profile.display_name()}-{self.club.name}"
 
 
 class Department(models.Model):
@@ -53,12 +79,15 @@ class Department(models.Model):
     )
     name = models.CharField(max_length=64)
     description = models.TextField(blank=True)
+    contact = models.TextField("联系方式", blank=True)
+    logo = models.ImageField("部门标志", upload_to="department_logos/", blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ("club", "name")
 
     def __str__(self):
+        """返回部门可读标识（含社团ID前缀）。"""
         return f"{self.club_id}-{self.name}" if self.club_id else self.name
 
 
@@ -66,6 +95,7 @@ class Position(models.Model):
     class NameChoices(models.TextChoices):
         PRESIDENT = "president", "社长"
         VICE_PRESIDENT = "vice_president", "副社长"
+        DEPARTMENT_HEAD = "department_head", "部门负责人"
 
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="positions")
     name = models.CharField(max_length=32, choices=NameChoices.choices)
@@ -77,6 +107,7 @@ class Position(models.Model):
         unique_together = ("department", "name")
 
     def __str__(self):
+        """返回“部门-岗位”组合名。"""
         return f"{self.department.name}-{self.name}"
 
 
@@ -89,7 +120,8 @@ class MemberAssignment(models.Model):
     end_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.profile.full_name}-{self.department or '未分配'}"
+        """返回成员当前任职信息。"""
+        return f"{self.profile.display_name()}-{self.department or '未分配'}"
 
 
 class NoticeStatus(models.TextChoices):
@@ -119,6 +151,11 @@ class Notice(models.Model):
     target_department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     target_role = models.CharField(max_length=20, choices=RoleChoices.choices, null=True, blank=True)
     pinned = models.BooleanField(default=False)
+    track_read_stats = models.BooleanField(
+        "统计已读人数",
+        default=False,
+        help_text="开启后成员需在公告详情页手动标记已读，社长/副社长可参与统计；高级管理员仅可查看比例不参与标记。",
+    )
     publish_at = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -127,6 +164,7 @@ class Notice(models.Model):
         ordering = ["-pinned", "-publish_at", "-created_at"]
 
     def __str__(self):
+        """返回公告标题。"""
         return self.title
 
 
@@ -153,6 +191,7 @@ class ActivityLaunchApprovalStatus(models.TextChoices):
     PENDING_SUPER = "pending_super", "待高级管理员审批"
     APPROVED = "approved", "审批通过"
     REJECTED = "rejected", "审批驳回"
+    NOT_PASSED = "not_passed", "未通过审批"
 
 
 class Activity(models.Model):
@@ -169,10 +208,7 @@ class Activity(models.Model):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     signup_deadline = models.DateTimeField()
-    capacity = models.PositiveIntegerField(default=100)
     status = models.CharField(max_length=16, choices=ActivityStatus.choices, default=ActivityStatus.DRAFT)
-    checkin_start = models.DateTimeField(null=True, blank=True)
-    checkin_end = models.DateTimeField(null=True, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="owned_activities")
     launch_approval_status = models.CharField(
         max_length=20,
@@ -194,6 +230,7 @@ class Activity(models.Model):
         ordering = ["-start_time"]
 
     def __str__(self):
+        """返回活动标题。"""
         return self.title
 
 
@@ -208,16 +245,6 @@ class ActivityRegistration(models.Model):
     profile = models.ForeignKey(MemberProfile, on_delete=models.CASCADE, related_name="registrations")
     status = models.CharField(max_length=16, choices=RegistrationStatus.choices, default=RegistrationStatus.REGISTERED)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("activity", "profile")
-
-
-class ActivityCheckin(models.Model):
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="checkins")
-    profile = models.ForeignKey(MemberProfile, on_delete=models.CASCADE, related_name="checkins")
-    checked_in_at = models.DateTimeField(auto_now_add=True)
-    method = models.CharField(max_length=32, default="manual")
 
     class Meta:
         unique_together = ("activity", "profile")
@@ -238,12 +265,11 @@ class JoinApplication(models.Model):
         blank=True,
         related_name="join_applications",
     )
-    applicant_name = models.CharField(max_length=64)
+    nickname = models.CharField("昵称", max_length=64, blank=True)
     student_id = models.CharField(max_length=32)
     phone = models.CharField(max_length=32)
     email = models.EmailField(blank=True)
-    intended_department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    self_intro = models.TextField(blank=True)
+    reason = models.TextField("申请原因", blank=True)
     status = models.CharField(max_length=16, choices=ApplicationStatus.choices, default=ApplicationStatus.PENDING)
     review_comment = models.TextField(blank=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -255,14 +281,20 @@ class JoinApplication(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.applicant_name}-{self.get_status_display()}"
+        """返回入社申请状态摘要。"""
+        return f"{self.student_id}-{self.get_status_display()}"
 
 
 class ClubCreationApplication(models.Model):
-    applicant = models.ForeignKey(MemberProfile, on_delete=models.CASCADE, related_name="club_creation_applications")
-    club_name = models.CharField(max_length=128)
-    club_intro = models.TextField(blank=True)
-    reason = models.TextField()
+    applicant = models.ForeignKey(
+        MemberProfile,
+        on_delete=models.CASCADE,
+        related_name="club_creation_applications",
+        verbose_name="申请人",
+    )
+    club_name = models.CharField("拟成立社团名称", max_length=128)
+    club_intro = models.TextField("社团简介", blank=True)
+    reason = models.TextField("成立理由")
     status = models.CharField(max_length=16, choices=ApplicationStatus.choices, default=ApplicationStatus.PENDING)
     review_comment = models.TextField(blank=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -274,6 +306,7 @@ class ClubCreationApplication(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.club_name}-{self.applicant.full_name}-{self.get_status_display()}"
+        """返回成立社团申请摘要。"""
+        return f"{self.club_name}-{self.applicant.display_name()}-{self.get_status_display()}"
 
 # Create your models here.

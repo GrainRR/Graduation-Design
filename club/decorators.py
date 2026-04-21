@@ -7,6 +7,7 @@ from .models import MemberAssignment, Position, RoleChoices
 
 
 def role_required(*roles):
+    """限制视图仅允许指定角色访问。"""
     def decorator(view_func):
         @login_required
         @wraps(view_func)
@@ -46,6 +47,7 @@ def club_leader_required(view_func):
 
 
 def reject_super_admin(message="高级管理员无需使用此功能"):
+    """阻止高级管理员访问特定成员端功能。"""
     def decorator(view_func):
         @wraps(view_func)
         def wrapped(request, *args, **kwargs):

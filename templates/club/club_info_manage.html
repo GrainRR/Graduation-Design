@@ -1,0 +1,98 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back">
+    {% if user.profile.role == 'super_admin' %}
+    <a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a>
+    {% else %}
+    <a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a>
+    {% endif %}
+</p>
+{% endblock %}
+{% block content %}
+<h2>{% if user.profile.role == 'super_admin' %}编辑社团信息{% else %}维护社团信息{% endif %}</h2>
+<p class="muted">{{ club.name }}：社团名称、简介、公告；{% if user.profile.role == 'super_admin' %}部门、人员职务与入社审批请使用下方入口。{% else %}社长/副社长可在此维护基础信息与公告。{% endif %}</p>
+{% if user.profile.role == 'super_admin' %}
+<div class="section-card" style="margin-bottom:16px;">
+    <h3 style="margin-top:0;">人员与架构</h3>
+    <p class="muted" style="margin-bottom:10px;">管理部门、核心职务（社长/副社长）及入社申请审批。</p>
+    <div class="inline-actions">
+        <a class="btn" href="{% url 'club:club_department_manage' club.pk %}">部门管理</a>
+        <a class="btn" href="{% url 'club:club_position_manage' club.pk %}">人员职务</a>
+        <a class="btn" href="{% url 'club:club_application_manage' club.pk %}">入社审批</a>
+    </div>
+</div>
+{% endif %}
+{% if not can_upload_club_logo and user.profile.role != 'super_admin' %}
+<p class="muted">社团标志图片仅社长、副社长可上传；你可继续编辑文字信息。</p>
+{% endif %}
+
+<div class="stack-grid">
+    <div class="section-card">
+        <h3>基础信息</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_club">
+            {{ club_form.as_p }}
+            <button type="submit">保存社团信息</button>
+        </form>
+    </div>
+    <div class="section-card">
+        <h3>{% if editing_notice %}编辑公告{% else %}新建公告{% endif %}</h3>
+        <p class="muted" style="margin-top:0;">填写<strong>发布时间</strong>可定时上线：须为<strong>已发布</strong>状态且当前时间到达该时间后，成员端才可见。勾选<strong>是否置顶</strong>后公告在列表中优先展示。</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="notice_id" value="{{ editing_notice.id|default:'' }}">
+            {{ notice_form.as_p }}
+            <p style="margin-top:12px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                <button type="submit" name="action" value="save_notice" style="background:#64748b;">{% if editing_notice %}保存草稿{% else %}保存为草稿{% endif %}</button>
+                <button type="submit" name="action" value="save_notice_publish">保存并发布</button>
+            </p>
+        </form>
+        {% if editing_notice %}
+        <p style="margin-top:12px; margin-bottom:0;"><a class="btn" href="{% url 'club:club_info_manage' club.pk %}">取消编辑</a></p>
+        {% endif %}
+    </div>
+</div>
+
+<h3>公告列表</h3>
+<table>
+    <tr>
+        <th>标题</th>
+        <th>发布时间</th>
+        <th>置顶</th>
+        <th>成员端可见</th>
+        <th>状态</th>
+        <th>操作</th>
+    </tr>
+    {% for n in notices %}
+    <tr>
+        <td><a href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a></td>
+        <td>{{ n.publish_at|date:"Y-m-d H:i" }}</td>
+        <td>{% if n.pinned %}是{% else %}否{% endif %}</td>
+        <td>
+            {% if n.status == 'published' and n.publish_at > schedule_now %}
+            <span class="muted">定时（{{ n.publish_at|date:"m-d H:i" }}起）</span>
+            {% elif n.status == 'published' %}
+            是
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+        </td>
+        <td>{{ n.get_status_display }}</td>
+        <td>
+            <a href="{% url 'club:club_info_manage' club.pk %}?notice={{ n.pk }}">编辑</a>
+            <a href="{% url 'club:club_notice_action' club.pk n.pk 'publish' %}">发布</a>
+            <a href="{% url 'club:club_notice_action' club.pk n.pk 'recall' %}">撤回</a>
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">暂无公告</td></tr>
+    {% endfor %}
+</table>
+
+{% if user.profile.role != 'super_admin' %}
+<div class="inline-actions">
+    <a href="{% url 'club:club_notice_list' club.pk %}">查看成员可见公告</a>
+</div>
+{% endif %}
+{% endblock %}

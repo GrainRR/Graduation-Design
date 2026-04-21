@@ -1,10 +1,17 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+{% if user.profile.role == 'super_admin' %}
+<p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
+{% else %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
+{% endif %}
+{% endblock %}
 {% block content %}
 <h2>个人资料</h2>
 <div class="profile-layout">
     <div class="profile-main">
         <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">保存</button></form>
-        <p style="margin-top:16px;"><a href="{% url 'club:change_password' %}">修改密码</a></p>
+        <p style="margin-top:16px;"><a class="btn" href="{% url 'club:change_password' %}">修改密码</a></p>
     </div>
     <aside class="profile-side">
         <h3>组织与职务</h3>
@@ -29,7 +36,17 @@
         {% else %}
         <p class="muted">暂无在任岗位</p>
         {% endif %}
-        <p style="margin-top:16px; margin-bottom:0;"><a href="{% url 'club:org_structure' %}">查看完整组织架构</a></p>
+        <p class="muted" style="margin-top:16px; margin-bottom:6px;">已加入社团</p>
+        {% if joined_clubs %}
+        <ul class="position-list">
+            {% for club in joined_clubs %}
+            <li>{{ club.name }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">暂无社团成员关系</p>
+        {% endif %}
+        <p style="margin-top:16px; margin-bottom:0;"><a class="btn" href="{% url 'club:my_clubs' %}">查看我的社团</a></p>
     </aside>
 </div>
 {% endblock %}

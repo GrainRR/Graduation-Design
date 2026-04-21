@@ -3,6 +3,6 @@
 <h2>登录</h2>
 <div class="auth-wrap">
     <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">登录</button></form>
-    <p><a href="{% url 'club:reset_password' %}">忘记密码</a></p>
+    <p><a class="btn" href="{% url 'club:reset_password' %}">忘记密码</a></p>
 </div>
 {% endblock %}

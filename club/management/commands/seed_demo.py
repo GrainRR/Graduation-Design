@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
-from club.models import ClubInfo, Department, MemberAssignment, MemberProfile, Position, RoleChoices
+from club.models import ClubInfo, ClubMembership, Department, MemberAssignment, MemberProfile, Position, RoleChoices
 
 
 class Command(BaseCommand):
@@ -18,7 +18,6 @@ class Command(BaseCommand):
             user=super_admin_user,
             defaults={
                 "role": RoleChoices.SUPER_ADMIN,
-                "full_name": "高级管理员",
                 "student_id": "SA0001",
                 "phone": "13800000009",
                 "email": "superadmin@example.com",
@@ -33,7 +32,6 @@ class Command(BaseCommand):
             user=admin_user,
             defaults={
                 "role": RoleChoices.CLUB_ADMIN,
-                "full_name": "社团管理员",
                 "student_id": "A0001",
                 "phone": "13800000001",
                 "email": "admin@example.com",
@@ -47,17 +45,19 @@ class Command(BaseCommand):
         default_club, _ = ClubInfo.objects.get_or_create(pk=1, defaults={"name": "学生社团管理系统"})
         admin_profile.club = default_club
         admin_profile.save(update_fields=["club"])
+        ClubMembership.objects.get_or_create(profile=admin_profile, club=default_club, defaults={"is_active": True})
         MemberProfile.objects.update_or_create(
             user=member_user,
             defaults={
                 "role": RoleChoices.MEMBER,
-                "full_name": "普通成员",
                 "student_id": "20230001",
                 "phone": "13900000000",
                 "email": "member@example.com",
                 "club": default_club,
             },
         )
+        member_profile = MemberProfile.objects.get(user=member_user)
+        ClubMembership.objects.get_or_create(profile=member_profile, club=default_club, defaults={"is_active": True})
         dept, _ = Department.objects.get_or_create(
             club=default_club, name="管理层", defaults={"description": "社团核心管理岗位"}
         )

@@ -1,7 +1,32 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{{ stats_back_url }}">返回</a></p>
+{% endblock %}
 {% block content %}
-<h2>活动统计 - {{ activity.title }}</h2>
-<p>报名人数：{{ reg_count }}</p>
-<p>到场人数：{{ checkin_count }}</p>
-<p>到场率：{{ rate }}%</p>
+<h2>活动统计 · 报名情况</h2>
+<p class="muted">{% if club %}{{ club.name }}{% else %}未关联社团{% endif %} · {{ activity.title }}</p>
+<p><strong>当前有效报名人数：{{ reg_count }}</strong>（含自主报名与管理员添加，不含已取消）</p>
+
+<h3 style="margin-top:1.25em; font-size:1.05em;">报名名单</h3>
+<table>
+    <tr>
+        <th>序号</th>
+        <th>姓名/展示名</th>
+        <th>学号</th>
+        <th>报名方式</th>
+        <th>报名时间</th>
+    </tr>
+    {% for r in registrations %}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ r.profile.display_name }}</td>
+        <td>{% if r.profile.student_id %}{{ r.profile.student_id }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{{ r.get_status_display }}</td>
+        <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="muted">暂无报名记录</td></tr>
+    {% endfor %}
+</table>
+
 {% endblock %}

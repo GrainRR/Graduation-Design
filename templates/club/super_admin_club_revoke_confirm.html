@@ -1,0 +1,11 @@
+{% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
+{% endblock %}
+{% block content %}
+<h2>撤销社团</h2>
+<p class="muted">确定撤销社团「<strong>{{ club.name }}</strong>」吗？将删除该社团及其关联数据（部门、活动、公告等），此操作不可恢复。</p>
+<form method="post">{% csrf_token %}
+<button type="submit" class="btn-danger">确认撤销</button>
+</form>
+{% endblock %}

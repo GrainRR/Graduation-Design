@@ -1,8 +1,11 @@
 {% extends 'club/base.html' %}
+{% block page_back %}
+<p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
+{% endblock %}
 {% block content %}
 <h2>社长 / 副社长管理</h2>
-<p>当前社长：{{ president_assignment.profile.full_name|default:'未设置' }}</p>
-<p>当前副社长：{{ vice_assignment.profile.full_name|default:'未设置' }}</p>
+<p>当前社长：{% if president_assignment %}{{ president_assignment.profile.display_name }}{% else %}未设置{% endif %}</p>
+<p>当前副社长：{% if vice_assignment %}{{ vice_assignment.profile.display_name }}{% else %}未设置{% endif %}</p>
 
 {% if is_president %}
 <h3>任命副社长</h3>
@@ -12,7 +15,7 @@
     <select name="vice_profile_id" required>
         <option value="">请选择成员</option>
         {% for c in candidates %}
-            <option value="{{ c.id }}">{{ c.full_name }}（{{ c.student_id|default:'-' }}）</option>
+            <option value="{{ c.id }}">{{ c.display_name }}（{{ c.student_id|default:'-' }}）</option>
         {% endfor %}
     </select>
     <button type="submit">任命为副社长</button>

@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .models import (
     Activity,
-    ActivityCheckin,
     ActivityRegistration,
     ClubInfo,
     ClubCreationApplication,
@@ -25,7 +24,6 @@ admin.site.register(Notice)
 admin.site.register(NoticeRead)
 admin.site.register(Activity)
 admin.site.register(ActivityRegistration)
-admin.site.register(ActivityCheckin)
 admin.site.register(JoinApplication)
 
 # Register your models here.

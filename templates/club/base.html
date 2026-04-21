@@ -20,82 +20,146 @@
             background: var(--bg);
             color: var(--text);
             font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+            min-height: 100vh;
         }
-        .topbar {
-            background: linear-gradient(120deg, #1d4ed8, #2563eb 50%, #3b82f6);
-            color: #fff;
-            padding: 18px 24px;
-            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
-        }
-        .topbar h1 { margin: 0; font-size: 22px; font-weight: 600; }
-        .topbar p { margin: 4px 0 0; opacity: 0.9; font-size: 13px; }
-        .container { max-width: 1100px; margin: 18px auto; padding: 0 14px; }
-        nav {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 10px;
+        /* —— 主界面：左侧导航 + 右侧内容 —— */
+        .app-frame {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 14px;
+            height: 100vh;
+            align-items: stretch;
+            overflow: hidden;
         }
-        nav a {
-            text-decoration: none;
-            color: #1e3a8a;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #eff6ff;
-        }
-        nav a:hover { background: #dbeafe; }
-        .nav-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        .nav-dropdown > summary {
-            list-style: none;
-            cursor: pointer;
-            color: #1e3a8a;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #eff6ff;
-            border: none;
-            font-family: inherit;
-        }
-        .nav-dropdown > summary::-webkit-details-marker { display: none; }
-        .nav-dropdown > summary::after { content: " ▾"; font-size: 11px; opacity: 0.7; }
-        .nav-dropdown[open] > summary { background: #dbeafe; }
-        .nav-dropdown-panel {
-            position: absolute;
-            left: 0;
-            top: calc(100% + 6px);
-            min-width: 220px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            box-shadow: 0 10px 24px rgba(2, 6, 23, 0.08);
-            padding: 8px;
-            z-index: 50;
+        .sidebar {
+            width: 268px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 48%, #0f172a 100%);
+            color: #e2e8f0;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12);
+            z-index: 20;
+            height: 100vh;
         }
-        .nav-dropdown-panel a {
-            display: block;
-            padding: 8px 10px;
-            border-radius: 8px;
-            background: transparent;
-            color: #1e3a8a;
+        .sidebar-brand {
+            padding: 22px 18px 18px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
         }
-        .nav-dropdown-panel a:hover { background: #eff6ff; }
-        .nav-dropdown-panel .sub-label {
-            font-size: 11px;
-            color: var(--muted);
-            padding: 6px 10px 2px;
-            text-transform: uppercase;
+        .sidebar-brand h1 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 700;
             letter-spacing: 0.02em;
+            line-height: 1.35;
+            color: #f8fafc;
+        }
+        .sidebar-brand p {
+            margin: 8px 0 0;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 12px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .sidebar-section-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+            padding: 14px 12px 8px;
+            margin-top: 4px;
+            position: relative;
+        }
+        .sidebar-section-label:first-child { margin-top: 0; padding-top: 4px; }
+        .sidebar-section-label--badge { position: relative; padding-right: 22px; }
+        .guest-header { margin-bottom: 18px; }
+        .guest-header h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
+        .guest-header .muted { margin: 6px 0 0; font-size: 14px; }
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            transition: background 0.15s, color 0.15s;
+            border: 1px solid transparent;
+        }
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #f1f5f9;
+        }
+        .sidebar-link.is-active {
+            background: rgba(37, 99, 235, 0.22);
+            color: #fff;
+            border-color: rgba(59, 130, 246, 0.35);
+        }
+        .sidebar-link .nav-icon {
+            width: 22px;
+            text-align: center;
+            font-size: 15px;
+            opacity: 0.92;
+            flex-shrink: 0;
+        }
+        .sidebar-link .nav-text { flex: 1; min-width: 0; }
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        .sidebar-footer .sidebar-link {
+            color: #fca5a5;
+        }
+        .sidebar-footer .sidebar-link:hover {
+            background: rgba(239, 68, 68, 0.12);
+            color: #fecaca;
+        }
+        .app-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            overflow-y: auto;
+        }
+        .app-main-inner {
+            flex: 1;
+            max-width: 1120px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px 22px 32px;
+            box-sizing: border-box;
+        }
+        .guest-shell {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 18px 14px 32px;
+        }
+        .notify-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            top: 8px;
+            right: 10px;
+            box-shadow: 0 0 0 2px #0f172a;
+            pointer-events: none;
+        }
+        .sidebar-section-label .notify-dot {
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            box-shadow: 0 0 0 2px #1e293b;
         }
         .panel {
             background: var(--card);
@@ -145,7 +209,9 @@
         }
         textarea { min-height: 90px; resize: vertical; }
         input:focus, select:focus, textarea:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px #dbeafe; }
-        button, .btn {
+        button,
+        input[type="submit"],
+        .btn {
             border: none;
             border-radius: 8px;
             background: var(--primary);
@@ -155,9 +221,48 @@
             text-decoration: none;
             display: inline-block;
             font-size: 14px;
+            font-family: inherit;
         }
-        button:hover, .btn:hover { background: var(--primary-hover); }
+        button:hover,
+        input[type="submit"]:hover,
+        .btn:hover { background: var(--primary-hover); }
+        .btn-danger {
+            background: #dc2626 !important;
+            color: #fff !important;
+        }
+        .btn-danger:hover {
+            background: #b91c1c !important;
+        }
+        .page-back { margin: 0 0 14px 0; }
+        .page-back a.btn { margin-right: 8px; }
+        .panel table td a,
+        .panel .inline-actions a {
+            display: inline-block;
+            background: var(--primary);
+            color: #fff !important;
+            padding: 6px 12px;
+            margin: 2px 4px 2px 0;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .panel table td a:hover,
+        .panel .inline-actions a:hover { background: var(--primary-hover); }
+        .panel table td a.btn-danger:hover,
+        .panel .inline-actions a.btn-danger:hover,
+        .panel table td.cell-actions .op-group form button.btn-danger:hover {
+            background: #b91c1c !important;
+        }
+        .panel table td a.btn-danger,
+        .panel .inline-actions a.btn-danger,
+        .panel table td.cell-actions .op-group form button.btn-danger {
+            background: #dc2626 !important;
+            color: #fff !important;
+        }
+        .panel .text-link { background: transparent; color: #1d4ed8 !important; padding: 0; margin: 0; display: inline; border-radius: 0; }
+        .panel .text-link:hover { background: transparent; color: #1e40af !important; text-decoration: underline; }
         a { color: #1d4ed8; }
+        input[type="file"] { font-size: 14px; max-width: 420px; }
         form p { margin: 0 0 12px; }
         form[style*="display:inline"] input {
             width: 140px;
@@ -166,6 +271,41 @@
             vertical-align: middle;
         }
         form[style*="display:inline"] button { vertical-align: middle; }
+        .panel table td.cell-actions {
+            vertical-align: middle;
+        }
+        .panel table td.cell-actions .op-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel table td.cell-actions .op-group > a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
+            padding: 8px 14px;
+            margin: 0 !important;
+            box-sizing: border-box;
+        }
+        .panel table td.cell-actions .op-group form {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+        }
+        .panel table td.cell-actions .op-group form button {
+            min-height: 36px;
+            padding: 8px 14px;
+            box-sizing: border-box;
+            margin: 0;
+        }
+        .panel table td.cell-actions .op-group--with-input form input {
+            width: 140px;
+            max-width: 140px;
+            margin: 0;
+        }
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -224,6 +364,9 @@
             gap: 16px;
             margin-top: 16px;
         }
+        .club-grid-wide {
+            grid-template-columns: 1fr;
+        }
         .club-card {
             display: flex;
             gap: 12px;
@@ -237,9 +380,237 @@
             transition: box-shadow 0.15s, transform 0.15s;
         }
         .club-card:hover { box-shadow: 0 8px 20px rgba(2,6,23,0.08); transform: translateY(-2px); }
+        .club-card-static {
+            cursor: default;
+        }
+        .club-card-static:hover {
+            transform: none;
+            box-shadow: 0 4px 10px rgba(2, 6, 23, 0.04);
+        }
+        .club-card-super {
+            grid-template-columns: 72px minmax(140px, 1.2fr) minmax(160px, 1fr) minmax(100px, 120px) minmax(132px, 150px);
+        }
+        .club-card-super-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: center;
+            align-items: stretch;
+        }
+        .club-card-super-actions .btn {
+            margin: 0 !important;
+            text-align: center;
+            justify-content: center;
+        }
+        @media (max-width: 900px) {
+            .club-card-super {
+                grid-template-columns: 72px 1fr;
+            }
+            .club-card-super .club-card-super-actions {
+                grid-column: 1 / -1;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+        .club-card-horizontal {
+            display: grid;
+            grid-template-columns: 72px minmax(140px, 1.2fr) minmax(160px, 1fr) minmax(100px, 140px);
+            gap: 14px;
+            align-items: start;
+        }
+        /* Member list cards: avoid nesting <a> (notice titles) inside card link */
+        .club-card-h-link {
+            text-decoration: none;
+            color: inherit;
+            align-self: start;
+        }
+        .club-card-h-link:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+            border-radius: 8px;
+        }
+        @media (max-width: 900px) {
+            .club-card-horizontal {
+                grid-template-columns: 72px 1fr;
+                grid-template-rows: auto auto;
+            }
+            .club-card-horizontal .club-card-notices,
+            .club-card-horizontal .club-card-aside {
+                grid-column: 1 / -1;
+            }
+        }
         .club-card-logo { width: 72px; height: 72px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); }
         .club-card-logo img { width: 100%; height: 100%; object-fit: cover; }
         .club-card-intro { font-size: 13px; margin: 6px 0 0; }
+        .club-card-col-title {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: none;
+            margin-bottom: 6px;
+        }
+        .club-card-notice-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 13px;
+        }
+        .club-card-notice-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .club-card-notice-list li:last-child { border-bottom: none; }
+        .club-card-notice-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+        a.club-card-notice-title:hover { text-decoration: underline; color: #1e40af; }
+        .club-card-stat-line { margin: 6px 0 0; font-size: 14px; }
+        .workspace-intro-row {
+            display: grid;
+            grid-template-columns: 1fr minmax(200px, 260px) minmax(220px, 320px);
+            gap: 14px;
+            align-items: stretch;
+            margin-top: 14px;
+        }
+        @media (max-width: 900px) {
+            .workspace-intro-row { grid-template-columns: 1fr; }
+        }
+        .workspace-intro-row .club-intro-box,
+        .workspace-intro-row .workspace-card,
+        .workspace-intro-row .mini-stats { margin: 0; height: 100%; }
+        .workspace-intro-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 0;
+        }
+        @media (max-width: 500px) {
+            .workspace-intro-stats { grid-template-columns: 1fr; }
+        }
+        .club-workspace-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .club-workspace-head-left {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex: 1;
+            min-width: 220px;
+        }
+        .club-workspace-head-actions {
+            flex-shrink: 0;
+            text-align: right;
+            max-width: 280px;
+        }
+        .btn-header-maintain { white-space: nowrap; }
+        .maintain-hint {
+            margin: 8px 0 0;
+            font-size: 12px;
+            line-height: 1.45;
+            text-align: right;
+        }
+        .btn-sm {
+            padding: 6px 11px;
+            font-size: 13px;
+            border-radius: 7px;
+        }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #1e3a8a;
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: #e2e8f0; color: #1e3a8a; }
+        .btn-danger-outline {
+            background: #fff;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+        .btn-danger-outline:hover { background: #fef2f2; color: #991b1b; }
+        .dept-manage-table .dept-info-cell { min-width: 200px; }
+        .dept-info-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .dept-info-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+        .dept-info-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .dept-info-name { font-size: 15px; }
+        .dept-info-desc {
+            font-size: 13px;
+            margin: 0;
+        }
+        .dept-info-desc p { margin: 0 0 6px; }
+        .dept-info-desc p:last-child { margin-bottom: 0; }
+        .dept-ops-cell { vertical-align: top; min-width: 160px; }
+        .dept-ops-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .dept-delete-form { margin: 0; }
+        .dept-op-details { width: 100%; max-width: 320px; }
+        .dept-op-details > summary {
+            cursor: pointer;
+            display: inline-block;
+            user-select: none;
+            list-style: none;
+        }
+        .dept-op-details > summary::-webkit-details-marker { display: none; }
+        .dept-op-panel {
+            margin-top: 10px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fafafa;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .member-pick-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 12px;
+        }
+        .member-pick-list li { margin-bottom: 4px; }
+        .member-pick-label {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .member-pick-label:hover { background: #eff6ff; }
         .club-detail-head { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 16px; }
         .club-detail-logo { width: 100px; height: 100px; border-radius: 12px; overflow: hidden; background: #f1f5f9; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
         .club-detail-logo img { width: 100%; height: 100%; object-fit: cover; }
@@ -251,70 +622,307 @@
         .role-tag { font-size: 12px; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
         .role-tag.president { background: #fef3c7; color: #92400e; }
         .role-tag.vice { background: #dbeafe; color: #1e40af; }
+        .role-tag.dept-head { background: #ecfdf5; color: #047857; }
         .role-tag.member { background: #f3f4f6; color: #4b5563; }
+        .role-tag.super { background: #ede9fe; color: #5b21b6; }
+        .role-tag.pending-launch { background: #fef3c7; color: #92400e; }
+        .role-tag.approved-launch { background: #d1fae5; color: #065f46; }
+        .role-tag { margin-right: 6px; margin-bottom: 4px; display: inline-block; }
+        .activity-desc-cell {
+            max-width: 360px;
+            max-height: 140px;
+            overflow: auto;
+            font-size: 13px;
+            line-height: 1.45;
+            color: var(--muted);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
         .club-bulk-form input, .club-bulk-form textarea { max-width: 100%; }
         .edit-notice-block { border: 1px dashed var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+        .club-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .workspace-actions,
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .workspace-card,
+        .section-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+        }
+        .workspace-card h3,
+        .section-card h3 { margin-top: 0; margin-bottom: 8px; }
+        .workspace-card p,
+        .section-card p { margin: 0 0 10px; }
+        .workspace-card .btn { margin-top: 4px; }
+        .mini-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+        .mini-stat {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            background: #fff;
+        }
+        .mini-stat .label { color: var(--muted); font-size: 12px; }
+        .mini-stat .value { font-size: 20px; font-weight: 600; margin-top: 4px; }
+        .inline-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .admin-form-grid {
+            max-width: 520px;
+            margin-top: 8px;
+        }
+        .admin-form-grid .form-row {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: 12px 16px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .admin-form-grid .form-row label {
+            margin: 0;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+        }
+        .admin-form-grid .form-row .field-body {
+            min-width: 0;
+        }
+        .admin-form-grid .form-row .field-body > input {
+            max-width: 320px;
+            width: 100%;
+        }
+        .admin-form-grid .form-row .field-hint {
+            display: block;
+            font-size: 12px;
+            margin-top: 4px;
+            color: var(--muted);
+        }
+        .admin-form-grid .errorlist {
+            margin: 6px 0 0;
+            padding-left: 18px;
+            color: #b91c1c;
+            font-size: 13px;
+        }
+        .admin-form-grid .form-actions {
+            margin-top: 18px;
+            padding-left: 136px;
+        }
+        @media (max-width: 520px) {
+            .admin-form-grid .form-row {
+                grid-template-columns: 1fr;
+            }
+            .admin-form-grid .form-actions {
+                padding-left: 0;
+            }
+        }
+        .users-table-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin: 24px 0 12px;
+        }
+        .users-table-toolbar h3 {
+            margin: 0;
+        }
+        .users-table-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        table.user-manage-table input[type="text"],
+        table.user-manage-table input[type="password"] {
+            max-width: 140px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            font-size: 13px;
+        }
+        table.user-manage-table .cell-user-pw {
+            min-width: 160px;
+        }
+        table.user-manage-table .input-pw-fake {
+            display: block;
+            max-width: 140px;
+            margin-bottom: 6px;
+            background: var(--surface-muted, #f1f5f9);
+            color: var(--muted);
+            border: 1px solid var(--border, #e2e8f0);
+            cursor: default;
+        }
+        table.user-manage-table th.col-select,
+        table.user-manage-table td.col-select {
+            width: 52px;
+            text-align: center;
+        }
+        @media (max-width: 900px) {
+            .app-frame { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: stretch;
+            }
+            .sidebar-brand {
+                flex: 1;
+                min-width: 200px;
+                border-bottom: none;
+                border-right: 1px solid rgba(148, 163, 184, 0.15);
+            }
+            .sidebar-nav {
+                flex: 2;
+                min-width: min(100%, 320px);
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-content: flex-start;
+                max-height: none;
+            }
+            .sidebar-section-label {
+                width: 100%;
+                flex-basis: 100%;
+            }
+            .sidebar-link {
+                flex: 1 1 auto;
+                min-width: 140px;
+            }
+            .sidebar-footer {
+                width: 100%;
+                border-top: 1px solid rgba(148, 163, 184, 0.15);
+            }
+        }
     </style>
 </head>
 <body>
-<header class="topbar">
-    <h1>学生社团管理系统</h1>
-    <p>成员端 / 管理端一体化平台</p>
-</header>
-
-<main class="container">
-    {% if user.is_authenticated %}
-        <nav>
-            <a href="{% url 'club:dashboard' %}">首页</a>
-            <a href="{% url 'club:profile' %}">个人资料</a>
-            <a href="{% url 'club:club_list' %}">社团列表</a>
-            {% if user.profile.role == 'club_admin' and user.profile.club_id %}
-            <details class="nav-dropdown">
-                <summary>本社团管理</summary>
-                <div class="nav-dropdown-panel">
-                    <a href="{% url 'club:club_detail' user.profile.club.pk %}">社团主页</a>
-                    <a href="{% url 'club:club_info_edit' %}">维护社团信息</a>
-                    <span class="sub-label">通知公告</span>
-                    <a href="{% url 'club:notice_list' %}">通知公告（查看）</a>
-                    <a href="{% url 'club:notice_manage' %}">公告管理（发布/编辑）</a>
-                    <span class="sub-label">组织与职务</span>
-                    <a href="{% url 'club:leadership_manage' %}">社长/副社长管理</a>
-                    <a href="{% url 'club:position_manage' %}">岗位管理</a>
-                    <a href="{% url 'club:department_manage' %}">部门管理</a>
-                </div>
-            </details>
-            {% elif user.profile.role == 'member' %}
-            <a href="{% url 'club:club_info' %}">我的社团信息</a>
-            <a href="{% url 'club:notice_list' %}">通知公告</a>
-            <a href="{% url 'club:org_structure' %}">组织架构</a>
-            {% elif user.profile.role == 'super_admin' %}
-            <a href="{% url 'club:notice_list' %}">通知公告</a>
-            {% endif %}
+{% if user.is_authenticated %}
+{% with rn=request.resolver_match.url_name %}
+<div class="app-frame">
+    <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar-brand">
+            <h1>学生社团管理系统</h1>
+            <p>成员端 / 管理端 · 一体化平台</p>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">常用</div>
+            <a href="{% url 'club:profile' %}" class="sidebar-link{% if rn == 'profile' or rn == 'change_password' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">👤</span>
+                <span class="nav-text">个人资料</span>
+            </a>
+            <a href="{% url 'club:club_list' %}" class="sidebar-link{% if rn == 'club_list' or rn == 'club_detail' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">🏛</span>
+                <span class="nav-text">社团列表</span>
+            </a>
             {% if user.profile.role != 'super_admin' %}
-            <a href="{% url 'club:activity_list' %}">活动</a>
-            <a href="{% url 'club:my_activities' %}">我的活动</a>
-            <a href="{% url 'club:apply_join' %}">入社申请</a>
-            <a href="{% url 'club:my_applications' %}">我的申请</a>
-            <a href="{% url 'club:club_creation_apply' %}">成立社团申请</a>
-            <a href="{% url 'club:my_club_creation_applications' %}">我的成立申请</a>
+            <a href="{% url 'club:my_clubs' %}" class="sidebar-link{% if 'my-clubs' in request.path %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">📁</span>
+                <span class="nav-text">我的社团</span>
+                {% if approval_badges.club_join_pending_count > 0 %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+            </a>
             {% endif %}
-            {% if user.profile.role == 'club_admin' %}
-                <a href="{% url 'club:activity_manage' %}">活动管理</a>
-                <a href="{% url 'club:application_manage' %}">申请审批</a>
+
+            {% if user.profile.role != 'super_admin' %}
+            <div class="sidebar-section-label">活动与申请</div>
+            <a href="{% url 'club:activity_list' %}" class="sidebar-link{% if rn == 'activity_list' or rn == 'activity_register' or rn == 'activity_cancel' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">📅</span>
+                <span class="nav-text">活动</span>
+            </a>
+            <a href="{% url 'club:my_activities' %}" class="sidebar-link{% if rn == 'my_activities' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">✅</span>
+                <span class="nav-text">我的活动</span>
+            </a>
+            <a href="{% url 'club:apply_join' %}" class="sidebar-link{% if rn == 'apply_join' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">📝</span>
+                <span class="nav-text">入社申请</span>
+            </a>
+            <a href="{% url 'club:my_applications' %}" class="sidebar-link{% if rn == 'my_applications' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">📋</span>
+                <span class="nav-text">我的申请</span>
+            </a>
+            <a href="{% url 'club:club_creation_apply' %}" class="sidebar-link{% if rn == 'club_creation_apply' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">✨</span>
+                <span class="nav-text">成立社团申请</span>
+            </a>
+            <a href="{% url 'club:my_club_creation_applications' %}" class="sidebar-link{% if rn == 'my_club_creation_applications' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">📄</span>
+                <span class="nav-text">我的成立申请</span>
+            </a>
             {% endif %}
+
             {% if user.profile.role == 'super_admin' %}
-                <a href="{% url 'club:club_creation_manage' %}">成立社团审批</a>
-                <a href="{% url 'club:activity_launch_approval_manage' %}">活动发起审批</a>
+            <div class="sidebar-section-label">系统管理</div>
+            <a href="{% url 'club:super_admin_user_manage' %}" class="sidebar-link{% if rn == 'super_admin_user_manage' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">👥</span>
+                <span class="nav-text">用户管理</span>
+            </a>
+            <div class="sidebar-section-label sidebar-section-label--badge">
+                审批中心
+                {% if approval_badges.super_any_pending_count > 0 %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+            </div>
+            <a href="{% url 'club:club_creation_manage' %}" class="sidebar-link{% if rn == 'club_creation_manage' or rn == 'club_creation_review' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">✔️</span>
+                <span class="nav-text">成立社团审批</span>
+                {% if approval_badges.super_club_creation_pending_count > 0 %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+            </a>
+            <a href="{% url 'club:activity_launch_approval_manage' %}" class="sidebar-link{% if rn == 'activity_launch_approval_manage' or rn == 'activity_launch_review' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">🚀</span>
+                <span class="nav-text">活动发起审批</span>
+                {% if approval_badges.super_activity_launch_pending_count > 0 %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+            </a>
+            <a href="{% url 'club:super_admin_activity_list' %}" class="sidebar-link{% if rn == 'super_admin_activity_list' or rn == 'super_admin_activity_revoke' %} is-active{% endif %}">
+                <span class="nav-icon" aria-hidden="true">📊</span>
+                <span class="nav-text">活动列表</span>
+            </a>
             {% endif %}
-            <a href="{% url 'club:logout' %}">退出</a>
         </nav>
-    {% endif %}
-    {% for m in messages %}
-        <div class="msg">{{ m }}</div>
-    {% endfor %}
-    <section class="panel">
-        {% block content %}{% endblock %}
-    </section>
-</main>
+        <div class="sidebar-footer">
+            <a href="{% url 'club:logout' %}" class="sidebar-link">
+                <span class="nav-icon" aria-hidden="true">⏻</span>
+                <span class="nav-text">退出登录</span>
+            </a>
+        </div>
+    </aside>
+    <div class="app-main">
+        <div class="app-main-inner">
+{% endwith %}
+{% else %}
+<div class="guest-shell">
+    <header class="guest-header">
+        <h1>学生社团管理系统</h1>
+        <p class="muted">成员端 / 管理端一体化平台</p>
+    </header>
+{% endif %}
+            {% for m in messages %}
+                <div class="msg">{{ m }}</div>
+            {% endfor %}
+            <section class="panel">
+                {% block page_back %}{% endblock %}
+                {% block content %}{% endblock %}
+            </section>
+{% if user.is_authenticated %}
+        </div>
+    </div>
+</div>
+{% else %}
+</div>
+{% endif %}
 </body>
 </html>
