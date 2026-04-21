@@ -20,36 +20,6 @@
 - 成立社团申请：普通成员提交成立社团申请，高级管理员审批，通过后发放社团管理员权限并任命社长
 - 非功能落地（基础）：事务控制与并发保护（报名、签到、审批）
 
-## 快速启动
-
-1. 安装依赖（若尚未安装 Django）
-
-```bash
-pip install django
-```
-
-2. 执行迁移
-
-```bash
-python manage.py migrate
-```
-
-3. 初始化演示账号
-
-```bash
-python manage.py seed_demo
-```
-
-4. 启动服务
-
-```bash
-python manage.py runserver
-```
-
-5. 访问地址
-
-- 系统首页: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- Django 管理后台: [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
 
 ## 演示账号
 
