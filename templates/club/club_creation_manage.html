@@ -9,11 +9,15 @@
 <tr>
   <td>{{ a.applicant.display_name }}</td><td>{{ a.club_name }}</td><td>{{ a.reason }}</td><td>{{ a.get_status_display }}</td>
   <td class="cell-actions">
+    {% if a.status == 'pending' %}
     <div class="op-group op-group--with-input">
     <form method="post" action="{% url 'club:club_creation_review' a.id 'approve' %}">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
     <form method="post" action="{% url 'club:club_creation_review' a.id 'reject' %}">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
     <form method="post" action="{% url 'club:club_creation_review' a.id 'return' %}">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>
     </div>
+    {% else %}
+    <span class="muted">已处理</span>
+    {% endif %}
   </td>
 </tr>
 {% endfor %}

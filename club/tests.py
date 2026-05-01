@@ -12,6 +12,7 @@ from .models import (
     ActivityLaunchApprovalStatus,
     ActivityStatus,
     ApplicationStatus,
+    ClubCreationApplication,
     ClubInfo,
     ClubMembership,
     Department,
@@ -128,6 +129,70 @@ class JoinApplicationMembershipTests(TestCase):
             ClubMembership.objects.filter(profile=self.member_profile, club=self.managed_club, is_active=True).exists()
         )
         self.assertEqual(self.member_profile.club, self.original_club)
+
+
+class ClubCreationApprovalTests(TestCase):
+    def setUp(self):
+        self.super_user = User.objects.create_user(username="super_creation", password="pass12345")
+        MemberProfile.objects.create(
+            user=self.super_user,
+            student_id="SUPER100",
+            role=RoleChoices.SUPER_ADMIN,
+        )
+        self.applicant_user = User.objects.create_user(username="20231234", password="pass12345")
+        self.applicant_profile = MemberProfile.objects.create(
+            user=self.applicant_user,
+            student_id="20231234",
+            role=RoleChoices.MEMBER,
+        )
+        self.application = ClubCreationApplication.objects.create(
+            applicant=self.applicant_profile,
+            club_name="天文社",
+            club_intro="组织观星与科普活动",
+            reason="希望建设校园天文交流平台",
+        )
+
+        self.client.force_login(self.super_user)
+
+    def test_approve_club_creation_application_deletes_request_and_blocks_repeat_submission(self):
+        url = reverse("club:club_creation_review", args=[self.application.pk, "approve"])
+
+        first_response = self.client.post(url, {"comment": "通过"})
+        second_response = self.client.post(url, {"comment": "再次通过"})
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertFalse(ClubCreationApplication.objects.filter(pk=self.application.pk).exists())
+        self.assertEqual(ClubInfo.objects.filter(name="天文社").count(), 1)
+
+        self.applicant_profile.refresh_from_db()
+        self.assertEqual(self.applicant_profile.role, RoleChoices.CLUB_ADMIN)
+        self.assertEqual(self.applicant_profile.club.name, "天文社")
+        self.assertTrue(
+            ClubMembership.objects.filter(profile=self.applicant_profile, club__name="天文社", is_active=True).exists()
+        )
+        self.assertTrue(
+            MemberAssignment.objects.filter(
+                profile=self.applicant_profile,
+                department__club__name="天文社",
+                position__name=Position.NameChoices.PRESIDENT,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_processed_club_creation_application_cannot_be_reviewed_again(self):
+        self.application.status = ApplicationStatus.RETURNED
+        self.application.save(update_fields=["status"])
+
+        response = self.client.post(
+            reverse("club:club_creation_review", args=[self.application.pk, "approve"]),
+            {"comment": "重新通过"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, ApplicationStatus.RETURNED)
+        self.assertFalse(ClubInfo.objects.filter(name="天文社").exists())
 
 
 class ActivityLaunchApprovalTests(TestCase):

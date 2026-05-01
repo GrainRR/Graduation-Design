@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'club',
 ]
 
+# 中间件
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -57,7 +58,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates']
         ,
-        'APP_DIRS': True,
+        'APP_DIRS': True, # 写true后可以直接在app文件夹下的templates文件夹中寻找模板文件
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import cast
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout, update_session_auth_hash
@@ -1146,8 +1147,18 @@ def department_club_manage(request, club_pk):
 
 @login_required
 def position_manage(request, club_pk=None):
-    """管理社长/副社长任命以及成员岗位展示。"""
-    profile = request.user.profile
+    """
+    人员职务管理页：
+    - 展示当前社团成员及其职务标签
+    - 处理社长/副社长任命操作（按登录身份分流）
+    """
+    # 类型提示说明：
+    # login_required 已保证运行时 request.user 非匿名，但静态类型检查器仍可能推断为 User | AnonymousUser。
+    # 这里做一次显式 cast，避免 "找不到 profile" 的误报。
+    user = cast(User, request.user)
+    profile = user.profile
+    # 第一步：确定“当前操作的社团”并做权限校验。
+    # 超管必须显式带 club_pk；其他用户必须对目标社团具备管理权限。
     if profile.role == RoleChoices.SUPER_ADMIN:
         if not club_pk:
             messages.info(request, "请从社团列表进入具体社团后再管理人员职务")
@@ -1155,18 +1166,24 @@ def position_manage(request, club_pk=None):
         club = get_object_or_404(ClubInfo, pk=club_pk)
     else:
         club = _require_manageable_club(profile, club_pk)
+
+    # 第二步：读取当前在任的社长/副社长，用于页面展示和默认选中。
     president_assignment = _get_active_assignment_by_position(club, Position.NameChoices.PRESIDENT)
     vice_assignments = list(_get_active_assignments_by_position(club, Position.NameChoices.VICE_PRESIDENT))
+    # 兼容旧模板字段：保留“单个副社长”入口（取首个）。
     vice_assignment = vice_assignments[0] if vice_assignments else None
 
+    # 第三步：处理提交动作（POST）。
     if request.method == "POST":
         action = request.POST.get("action")
+        # 超管可直接管理该社团的社长/副社长职务。
         if profile.role == RoleChoices.SUPER_ADMIN:
             if action == "appoint_president":
                 pid = (request.POST.get("president_profile_id") or "").strip()
                 if not pid:
                     messages.error(request, "请选择社长人选")
                     return redirect("club:club_position_manage", club_pk=club.pk)
+                # 人选约束：必须是本社团在籍成员，且不能是高级管理员账号。
                 target = (
                     MemberProfile.objects.filter(
                         memberships__club=club,
@@ -1188,6 +1205,7 @@ def position_manage(request, club_pk=None):
                 messages.success(request, f"已任命 {target.display_name()} 为社长")
                 return redirect("club:club_position_manage", club_pk=club.pk)
             if action == "appoint_vice_set":
+                # 多选提交：最终副社长名单与所选列表保持一致（空列表即清空）。
                 ids_raw = request.POST.getlist("vice_profile_ids")
                 try:
                     _set_vice_presidents_for_club(club, ids_raw)
@@ -1199,10 +1217,12 @@ def position_manage(request, club_pk=None):
             messages.error(request, "无效操作")
             return redirect("club:club_position_manage", club_pk=club.pk)
 
+        # 普通管理端：仅允许“现任社长”任命副社长。
         if action == "appoint_vice":
-            if not _is_current_president(request.user, club):
+            if not _is_current_president(user, club):
                 return HttpResponseForbidden("仅社长可任命副社长")
             vice_profile_id = request.POST.get("vice_profile_id")
+            # 同样限制为本社团在籍成员且排除超管账号。
             target = (
                 MemberProfile.objects.filter(
                     memberships__club=club, memberships__is_active=True, id=vice_profile_id
@@ -1220,6 +1240,7 @@ def position_manage(request, club_pk=None):
                 messages.error(request, str(e))
                 return redirect("club:club_position_manage", club_pk=club.pk)
             try:
+                # 当前路径采用“单副社长”语义：先清空，再任命目标成员。
                 _deactivate_all_vice_presidents_for_club(club)
                 _assign_vice_president_for_club(club, target)
                 _sync_global_role(target)
@@ -1229,9 +1250,11 @@ def position_manage(request, club_pk=None):
             messages.success(request, f"已任命 {target.display_name()} 为副社长")
             return redirect("club:club_position_manage", club_pk=club.pk)
 
+    # 第四步：准备 GET 展示数据（成员候选、成员行、下拉框顺序与默认值）。
     candidates = _club_member_candidates_qs(club)
     member_rows = _personnel_member_rows(club)
     is_super_admin_positions = profile.role == RoleChoices.SUPER_ADMIN
+    # 仅超管显示“社长任命下拉”；当前社长置顶，便于确认和替换。
     pres_ord = (
         _ordered_profiles_president_dropdown(
             club,
@@ -1241,9 +1264,16 @@ def position_manage(request, club_pk=None):
         else None
     )
     vice_ids = {a.profile_id for a in vice_assignments}
+    # 仅超管显示“副社长多选下拉”；现任副社长置顶，便于批量调整。
     vice_ord = _ordered_profiles_vice_dropdown(club, vice_ids) if is_super_admin_positions else None
+    # 控制多选框显示高度，避免候选过多时页面过长或过短。
     vice_select_size = min(12, max(4, len(vice_ord))) if vice_ord else 4
     vice_selected_profile_ids = list(vice_ids)
+
+    # 第五步：渲染页面。
+    # is_president 用于模板控制“社长操作区”显示：
+    # - 超管视角始终可见
+    # - 普通用户需当前确为该社团社长
     return render(
         request,
         "club/club_position_manage.html",
@@ -1253,7 +1283,7 @@ def position_manage(request, club_pk=None):
             "vice_assignment": vice_assignment,
             "vice_assignments": vice_assignments,
             "candidates": candidates,
-            "is_president": is_super_admin_positions or _is_current_president(request.user, club),
+            "is_president": is_super_admin_positions or _is_current_president(user, club),
             "member_rows": member_rows,
             "is_super_admin_positions": is_super_admin_positions,
             "president_candidates_ordered": pres_ord,
@@ -1992,29 +2022,52 @@ def club_creation_manage(request):
 @transaction.atomic
 def club_creation_review(request, pk, action):
     """高级管理员审批成立社团申请并在通过时创建社团。"""
-    app = get_object_or_404(ClubCreationApplication, pk=pk)
     if action not in {"approve", "reject", "return"}:
         return redirect("club:club_creation_manage")
+    app = (
+        ClubCreationApplication.objects.select_for_update()
+        .select_related("applicant")
+        .filter(pk=pk)
+        .first()
+    )
+    if not app:
+        messages.error(request, "该成立社团申请不存在或已处理")
+        return redirect("club:club_creation_manage")
+    if app.status != ApplicationStatus.PENDING:
+        messages.error(request, "该成立社团申请已处理，请勿重复审批")
+        return redirect("club:club_creation_manage")
+
+    profile = app.applicant
     if action == "approve":
-        profile = app.applicant
         try:
             _ensure_may_become_president(profile)
         except ValueError as e:
             messages.error(request, str(e))
             return redirect("club:club_creation_manage")
+        if ClubInfo.objects.filter(name=app.club_name).exists():
+            messages.error(request, f"社团「{app.club_name}」已存在，请勿重复创建")
+            return redirect("club:club_creation_manage")
 
-    app.status = {
-        "approve": ApplicationStatus.APPROVED,
-        "reject": ApplicationStatus.REJECTED,
-        "return": ApplicationStatus.RETURNED,
-    }[action]
-    app.review_comment = request.POST.get("comment", "")
-    app.reviewed_by = request.user
-    app.reviewed_at = timezone.now()
-    app.save()
+    review_comment = (request.POST.get("comment") or "").strip()
+    reviewed_at = timezone.now()
+    updated = ClubCreationApplication.objects.filter(
+        pk=app.pk,
+        status=ApplicationStatus.PENDING,
+    ).update(
+        status={
+            "approve": ApplicationStatus.APPROVED,
+            "reject": ApplicationStatus.REJECTED,
+            "return": ApplicationStatus.RETURNED,
+        }[action],
+        review_comment=review_comment,
+        reviewed_by_id=request.user.pk,
+        reviewed_at=reviewed_at,
+    )
+    if not updated:
+        messages.error(request, "该成立社团申请已处理，请勿重复审批")
+        return redirect("club:club_creation_manage")
 
     if action == "approve":
-        profile = app.applicant
         club = ClubInfo.objects.create(
             name=app.club_name,
             intro=app.club_intro or "",
@@ -2043,7 +2096,10 @@ def club_creation_review(request, pk, action):
             position=president_position,
             defaults={"is_active": True, "end_date": None},
         )
+        ClubCreationApplication.objects.filter(pk=app.pk).delete()
         messages.success(request, f"审批通过，已新建社团「{club.name}」并将 {profile.display_name()} 设为社长")
+        return redirect("club:club_creation_manage")
+
     return redirect("club:club_creation_manage")
 
 
