@@ -31,6 +31,11 @@ class ResetPasswordForm(forms.Form):
     new_password = forms.CharField(label="新密码", widget=forms.PasswordInput)
 
 
+class ClubLogoClearableFileInput(forms.ClearableFileInput):
+    template_name = "club/widgets/club_logo_clearable_file_input.html"
+    clear_checkbox_label = "清除社团标志"
+
+
 class ClubInfoForm(forms.ModelForm):
     class Meta:
         model = ClubInfo
@@ -42,6 +47,9 @@ class ClubInfoForm(forms.ModelForm):
             "contact": "联系方式",
             "principal": "负责人显示名",
             "logo": "社团标志（上传图片）",
+        }
+        widgets = {
+            "logo": ClubLogoClearableFileInput,
         }
 
     def __init__(self, *args, include_logo=True, **kwargs):
@@ -61,11 +69,15 @@ class DepartmentLogoForm(forms.ModelForm):
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
-        fields = ["name", "description", "is_active"]
+        fields = ["name", "description", "contact"]
         labels = {
             "name": "部门名称",
             "description": "部门描述",
-            "is_active": "启用",
+            "contact": "联系方式",
+        }
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "contact": forms.Textarea(attrs={"rows": 2}),
         }
 
 

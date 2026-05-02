@@ -50,6 +50,15 @@
                 <details class="dept-op-details">
                     <summary class="btn btn-sm btn-secondary">编辑部门信息</summary>
                     <div class="dept-op-panel">
+                        <form method="post" style="margin-bottom:12px;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="edit_department_info">
+                            <input type="hidden" name="department_id" value="{{ row.department.pk }}">
+                            {{ row.info_form.as_p }}
+                            <button type="submit" class="btn btn-sm">保存部门信息</button>
+                        </form>
+                        <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;">
+
                         {% if row.can_upload_logo %}
                         <p class="muted" style="margin:0 0 8px;font-size:13px;">部门标志：</p>
                         <a class="btn btn-sm" href="{% url 'club:department_logo_edit' club.pk row.department.pk %}">

@@ -21,6 +21,7 @@ from .forms import (
     ActivityForm,
     ClubCreationApplicationForm,
     ClubInfoForm,
+    DepartmentForm,
     DepartmentLogoForm,
     DepartmentWithHeadForm,
     JoinApplicationForm,
@@ -1057,6 +1058,7 @@ def department_club_manage(request, club_pk):
                 "head": head_by_dept.get(d.pk),
                 "can_upload_logo": profile.role == RoleChoices.SUPER_ADMIN
                 or _can_upload_department_logo(profile, d),
+                "info_form": DepartmentForm(instance=d, prefix=f"deptinfo_{d.pk}"),
             }
         )
 
@@ -1096,6 +1098,27 @@ def department_club_manage(request, club_pk):
                     return redirect("club:club_department_manage", club_pk=club.pk)
                 messages.success(request, "部门已新增，负责人已任命")
                 return redirect("club:club_department_manage", club_pk=club.pk)
+        elif action == "edit_department_info":
+            dept = get_object_or_404(Department, pk=request.POST.get("department_id"), club=club)
+            if dept.name == "管理层":
+                messages.error(request, "不能编辑「管理层」")
+                return redirect("club:club_department_manage", club_pk=club.pk)
+            info_form = DepartmentForm(request.POST, instance=dept, prefix=f"deptinfo_{dept.pk}")
+            if info_form.is_valid():
+                name = (info_form.cleaned_data["name"] or "").strip()
+                if name == "管理层":
+                    messages.error(request, "不能使用「管理层」作为部门名称")
+                    return redirect("club:club_department_manage", club_pk=club.pk)
+                if Department.objects.filter(club=club, name=name).exclude(pk=dept.pk).exists():
+                    messages.error(request, "该部门名称已存在")
+                    return redirect("club:club_department_manage", club_pk=club.pk)
+                department = info_form.save(commit=False)
+                department.club = club
+                department.save()
+                messages.success(request, "部门信息已更新")
+                return redirect("club:club_department_manage", club_pk=club.pk)
+            messages.error(request, "部门信息填写有误，请检查后重试")
+            return redirect("club:club_department_manage", club_pk=club.pk)
         elif action == "change_department_head":
             dept = get_object_or_404(Department, pk=request.POST.get("department_id"), club=club)
             if dept.name == "管理层":

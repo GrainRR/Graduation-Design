@@ -69,6 +69,56 @@ class MyClubWorkspaceTests(TestCase):
         self.assertEqual(can_manage.status_code, 200)
         self.assertEqual(cannot_manage.status_code, 403)
 
+    def test_department_info_can_be_edited_from_manage_page(self):
+        department = Department.objects.create(
+            club=self.club_a,
+            name="宣传部",
+            description="负责宣传",
+            contact="旧联系方式",
+        )
+
+        response = self.client.post(
+            reverse("club:club_department_manage", args=[self.club_a.pk]),
+            {
+                "action": "edit_department_info",
+                "department_id": department.pk,
+                f"deptinfo_{department.pk}-name": "新媒体部",
+                f"deptinfo_{department.pk}-description": "负责新媒体运营",
+                f"deptinfo_{department.pk}-contact": "newmedia@example.com",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        department.refresh_from_db()
+        self.assertEqual(department.name, "新媒体部")
+        self.assertEqual(department.description, "负责新媒体运营")
+        self.assertEqual(department.contact, "newmedia@example.com")
+        self.assertContains(response, "部门信息已更新")
+
+    def test_department_info_edit_rejects_duplicate_name_in_same_club(self):
+        department = Department.objects.create(club=self.club_a, name="宣传部")
+        Department.objects.create(club=self.club_a, name="活动部")
+
+        response = self.client.post(
+            reverse("club:club_department_manage", args=[self.club_a.pk]),
+            {
+                "action": "edit_department_info",
+                "department_id": department.pk,
+                f"deptinfo_{department.pk}-name": "活动部",
+                f"deptinfo_{department.pk}-description": "尝试重名",
+                f"deptinfo_{department.pk}-contact": "dup@example.com",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        department.refresh_from_db()
+        self.assertEqual(department.name, "宣传部")
+        self.assertEqual(department.description, "")
+        self.assertEqual(department.contact, "")
+        self.assertContains(response, "该部门名称已存在")
+
 
 class JoinApplicationMembershipTests(TestCase):
     def setUp(self):
