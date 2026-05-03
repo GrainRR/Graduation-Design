@@ -1,14 +1,19 @@
+"""成员-社团关系迁移：新增 ClubMembership，支撑一个成员加入多个社团。"""
+
 from django.db import migrations, models
 import django.db.models.deletion
 
 
 def backfill_memberships(apps, schema_editor):
+    """从旧 profile.club 和任职记录推导成员-社团关系。"""
+
     ClubMembership = apps.get_model("club", "ClubMembership")
     MemberProfile = apps.get_model("club", "MemberProfile")
     MemberAssignment = apps.get_model("club", "MemberAssignment")
 
     seen = set()
 
+    # 先把成员资料里的主社团转成 ClubMembership。
     for profile_id, club_id in MemberProfile.objects.exclude(club__isnull=True).values_list("id", "club_id"):
         key = (profile_id, club_id)
         if key in seen:
@@ -16,6 +21,7 @@ def backfill_memberships(apps, schema_editor):
         ClubMembership.objects.get_or_create(profile_id=profile_id, club_id=club_id)
         seen.add(key)
 
+    # 再把已经有岗位任职的成员也补进对应社团。
     assignments = (
         MemberAssignment.objects.filter(department__club__isnull=False)
         .values_list("profile_id", "department__club_id")
@@ -30,6 +36,8 @@ def backfill_memberships(apps, schema_editor):
 
 
 def noop_reverse(apps, schema_editor):
+    """数据回填不可安全逆转，迁移回滚时不做反向处理。"""
+
     pass
 
 

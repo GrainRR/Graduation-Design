@@ -1,4 +1,8 @@
 {% extends 'club/base.html' %}
+{% comment %}
+旧版岗位维护模板。
+当前岗位任命和成员职务展示集中在 club_position_manage.html，本模板保留作普通岗位表单参考。
+{% endcomment %}
 {% block content %}
 <h2>岗位管理</h2>
 <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">新增岗位</button></form>

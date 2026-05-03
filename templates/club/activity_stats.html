@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+活动报名统计页。
+视图：activity_stats。
+关键上下文：club、activity、reg_count、registrations、stats_back_url。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{{ stats_back_url }}">返回</a></p>
 {% endblock %}

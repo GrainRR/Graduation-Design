@@ -1,8 +1,13 @@
 {% extends 'club/base.html' %}
+{% comment %}
+公告详情页。
+视图：notice_detail。
+关键上下文：notice，以及开启已读统计时的 notice_read_count、notice_eligible_count、notice_user_*。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back">
     {% if notice.club %}
-        {% if user.profile.role == 'super_admin' %}
+        {% if user.memberprofile.role == 'super_admin' %}
         <a class="btn" href="{% url 'club:my_club_detail' notice.club.pk %}">返回社团工作区</a>
         {% else %}
         <a class="btn" href="{% url 'club:club_notice_list' notice.club.pk %}">返回公告列表</a>
@@ -26,7 +31,7 @@
 </style>
 <div class="notice-read-bar">
     <span class="notice-read-ratio">已读 {{ notice_read_count }}/{{ notice_eligible_count }}</span>
-    {% if user.profile.role != 'super_admin' %}
+    {% if user.memberprofile.role != 'super_admin' %}
         {% if notice_user_has_read %}
             <button type="button" class="notice-read-btn notice-read-done" disabled aria-disabled="true">已读</button>
         {% elif notice_user_can_mark_read %}

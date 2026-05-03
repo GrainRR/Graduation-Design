@@ -1,3 +1,8 @@
+{% comment %}
+基础布局模板。
+所有业务页面默认继承它：未登录时显示访客壳，登录后显示左侧导航和右侧内容区。
+侧边栏的审批红点来自 club.context_processors.approval_badges。
+{% endcomment %}
 <!doctype html>
 <html lang="zh-CN">
 <head>
@@ -815,6 +820,7 @@
 <body>
 {% if user.is_authenticated %}
 {% with rn=request.resolver_match.url_name %}
+{% comment %}登录态布局：左侧导航根据 user.memberprofile.role 分成成员端、社团管理端和高级管理员入口。{% endcomment %}
 <div class="app-frame">
     <aside class="sidebar" aria-label="主导航">
         <div class="sidebar-brand">
@@ -831,7 +837,7 @@
                 <span class="nav-icon" aria-hidden="true">🏛</span>
                 <span class="nav-text">社团列表</span>
             </a>
-            {% if user.profile.role != 'super_admin' %}
+            {% if user.memberprofile.role != 'super_admin' %}
             <a href="{% url 'club:my_clubs' %}" class="sidebar-link{% if 'my-clubs' in request.path %} is-active{% endif %}">
                 <span class="nav-icon" aria-hidden="true">📁</span>
                 <span class="nav-text">我的社团</span>
@@ -839,7 +845,7 @@
             </a>
             {% endif %}
 
-            {% if user.profile.role != 'super_admin' %}
+            {% if user.memberprofile.role != 'super_admin' %}
             <div class="sidebar-section-label">活动与申请</div>
             <a href="{% url 'club:activity_list' %}" class="sidebar-link{% if rn == 'activity_list' or rn == 'activity_register' or rn == 'activity_cancel' %} is-active{% endif %}">
                 <span class="nav-icon" aria-hidden="true">📅</span>
@@ -867,7 +873,8 @@
             </a>
             {% endif %}
 
-            {% if user.profile.role == 'super_admin' %}
+            {% if user.memberprofile.role == 'super_admin' %}
+            {% comment %}高级管理员专属入口：用户管理、成立社团审批、活动发起审批和活动监管。{% endcomment %}
             <div class="sidebar-section-label">系统管理</div>
             <a href="{% url 'club:super_admin_user_manage' %}" class="sidebar-link{% if rn == 'super_admin_user_manage' %} is-active{% endif %}">
                 <span class="nav-icon" aria-hidden="true">👥</span>
@@ -904,6 +911,7 @@
         <div class="app-main-inner">
 {% endwith %}
 {% else %}
+{% comment %}未登录布局：只保留简单外壳，具体表单由 login/reset_password 等模板提供。{% endcomment %}
 <div class="guest-shell">
     <header class="guest-header">
         <h1>学生社团管理系统</h1>
@@ -914,6 +922,7 @@
                 <div class="msg">{{ m }}</div>
             {% endfor %}
             <section class="panel">
+                {% comment %}子模板通过 page_back 放返回按钮，通过 content 放当前页面主体。{% endcomment %}
                 {% block page_back %}{% endblock %}
                 {% block content %}{% endblock %}
             </section>

@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+社团成员名册页。
+视图：club_member_list。
+关键上下文：club、member_rows；member_rows 已在视图里合并成员身份标签和入社申请补充信息。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
 {% endblock %}

@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+社团列表页。
+视图：club_list。
+关键上下文：card_rows 每行包含 club、近期 notices、card_url、has_pending_approval；is_super_admin 控制超管操作入口。
+{% endcomment %}
 {% block content %}
 <h2>社团列表</h2>
 <p class="muted">{% if is_super_admin %}卡片最右侧可「编辑社团信息」（名称、简介、公告、部门与人员职务、入社审批）或「撤销社团」。{% else %}同一行可浏览简介、近期公告与成员规模；点击卡片进入工作区或入社申请。{% endif %}</p>

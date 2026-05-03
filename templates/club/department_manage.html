@@ -1,4 +1,10 @@
 {% extends 'club/base.html' %}
+{% comment %}
+部门管理/部门列表页。
+视图：department_club_manage。
+关键上下文：club、can_manage、department_rows、create_form、candidates。
+can_manage 为真时显示新增、编辑、负责人调整、删除；否则只展示列表和可授权的部门标志上传。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
 {% endblock %}
@@ -7,6 +13,7 @@
 <p class="muted">{{ club.name }} — {% if can_manage %}新增部门时需同时指定负责人；并可设置部门联系方式。列表中可编辑部门信息、删除部门。{% else %}以下为各部门与负责人及联系方式信息。{% endif %}</p>
 
 {% if can_manage and create_form %}
+{% comment %}新增部门表单：创建部门时必须同时指定负责人，后端会创建/更新部门负责人任职。{% endcomment %}
 <div class="section-card" style="margin-bottom:18px;">
     <h3 style="margin-top:0;">新增部门</h3>
     <form method="post">
@@ -19,6 +26,7 @@
 {% endif %}
 
 <h3>部门列表</h3>
+{% comment %}department_rows 的每行包含 department、head、can_upload_logo 和独立 prefix 的 info_form。{% endcomment %}
 <table class="dept-manage-table">
     <tr>
         <th>部门</th>
@@ -46,6 +54,7 @@
         <td>{% if row.head %}{{ row.head.display_name }}{% else %}<span class="muted">未任命</span>{% endif %}</td>
         <td class="dept-ops-cell">
             {% if can_manage %}
+            {% comment %}管理者可在折叠区编辑部门资料、上传标志、调整负责人，也可删除部门。{% endcomment %}
             <div class="dept-ops-stack">
                 <details class="dept-op-details">
                     <summary class="btn btn-sm btn-secondary">编辑部门信息</summary>

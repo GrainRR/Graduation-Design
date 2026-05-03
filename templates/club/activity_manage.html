@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+社团侧活动管理页。
+视图：activity_manage。
+关键上下文：club、activities；活动发布前必须先提交发起审批并由高级管理员通过。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
 {% endblock %}

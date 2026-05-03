@@ -1,7 +1,13 @@
 {% extends 'club/base.html' %}
+{% comment %}
+单个社团工作台。
+视图：my_club_detail。
+关键上下文：club、identity_meta、stats、assignments、recent_notices、club_pending_join_count。
+identity_meta 的 can_manage/can_lead/can_maintain_club_info 决定按钮是否显示。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back">
-    {% if user.profile.role == 'super_admin' %}
+    {% if user.memberprofile.role == 'super_admin' %}
     <a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a>
     {% else %}
     <a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a>

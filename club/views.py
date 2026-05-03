@@ -1,3 +1,17 @@
+"""
+视图层与业务流程编排。
+
+本文件是项目最核心的“控制器”：
+- 先用 _require_* / _get_* 辅助函数处理社团身份、权限和默认入口；
+- 再由具体视图函数处理页面展示、表单提交、消息提示和重定向；
+- 涉及任命、审批、报名等多表写入的流程使用 transaction.atomic 保证一致性。
+
+阅读建议：
+1. 先看模型关系：MemberProfile -> ClubMembership -> Department/Position/MemberAssignment；
+2. 再看本文件前半部分的权限/身份辅助函数；
+3. 最后按 URL 分组阅读具体页面流程。
+"""
+
 from collections import defaultdict
 from typing import cast
 
@@ -61,7 +75,10 @@ User = get_user_model()
 # - 以 `_` 开头的是内部业务辅助函数，主要供本文件复用；
 # - 非 `_` 开头的是 URL 直接映射的视图函数（或模板/权限直接使用的公共函数）。
 
+# 社长与副社长是“可管理社团”的核心岗位，多处权限判断都会复用这个列表。
 CLUB_LEADER_POSITIONS = [Position.NameChoices.PRESIDENT, Position.NameChoices.VICE_PRESIDENT]
+
+# 身份元信息直接喂给模板：label 用于展示，can_* 控制工作台按钮是否出现。
 CLUB_IDENTITY_META = {
     "president": {
         "label": "社长",
@@ -85,6 +102,7 @@ def _ensure_membership(profile, club):
     """确保成员与社团存在激活的归属关系。"""
     if not club or profile.role == RoleChoices.SUPER_ADMIN:
         return None
+    # get_or_create 避免重复加入；旧记录若被停用，则在这里恢复为激活。
     membership, created = ClubMembership.objects.get_or_create(
         profile=profile,
         club=club,
@@ -93,6 +111,7 @@ def _ensure_membership(profile, club):
     if not created and not membership.is_active:
         membership.is_active = True
         membership.save(update_fields=["is_active"])
+    # profile.club 只保留一个“主社团/默认社团”，不要把它当作全部加入关系。
     if not profile.club_id:
         profile.club = club
         profile.save(update_fields=["club"])
@@ -101,6 +120,7 @@ def _ensure_membership(profile, club):
 
 def _get_joined_club_ids(profile):
     """汇总成员已加入社团的ID列表。"""
+    # 多社团来源有三类：Membership、任职记录、旧版 profile.club。
     club_ids = set(profile.memberships.filter(is_active=True).values_list("club_id", flat=True))
     club_ids.update(
         profile.assignments.filter(is_active=True, department__club__isnull=False).values_list("department__club_id", flat=True)
@@ -134,6 +154,7 @@ def _get_primary_joined_club(profile):
 
 def _get_manageable_club_ids(profile):
     """汇总当前成员可管理社团的ID列表。"""
+    # 岗位任职是最可靠的管理权限来源；profile.club 兼容旧社团管理员数据。
     club_ids = set(
         profile.assignments.filter(
             is_active=True,
@@ -257,6 +278,7 @@ def _can_upload_department_logo(profile, department):
     club = department.club
     if _get_profile_club_identity(profile, club) in {"president", "vice_president"}:
         return True
+    # 部门负责人只能维护自己负责部门的标志。
     return profile.assignments.filter(
         is_active=True,
         department_id=department.pk,
@@ -476,6 +498,7 @@ def _set_vice_presidents_for_club(club, profile_ids):
             raise ValueError("副社长人选无效") from None
         if pid not in seen:
             seen.append(pid)
+    # 社长不能同时出现在副社长列表里，避免一个账号拥有两个互斥管理层身份。
     pres = _get_active_assignment_by_position(club, Position.NameChoices.PRESIDENT)
     pres_id = pres.profile_id if pres else None
     targets = []
@@ -496,6 +519,7 @@ def _set_vice_presidents_for_club(club, profile_ids):
             raise ValueError("社长不能兼任副社长")
         targets.append(target)
     _deactivate_all_vice_presidents_for_club(club)
+    # 采用“最终名单覆盖”语义：先清空旧副社长，再按传入列表重新任命。
     for target in targets:
         _assign_vice_president_for_club(club, target)
 
@@ -562,6 +586,7 @@ def _personnel_member_rows(club):
         .order_by("student_id", "-updated_at", "-pk")
     )
     app_by_student_id = {}
+    # 入社申请按学号兜底补充昵称、联系方式和申请原因；没有申请记录则展示 profile 字段。
     for app in approved_apps:
         sid = (app.student_id or "").strip()
         if sid and sid not in app_by_student_id:
@@ -622,6 +647,7 @@ def _create_member_account(student_id, raw_password=None, username=None):
         return False, "username_exists"
     if MemberProfile.objects.filter(student_id=student_id).exists():
         return False, "student_id_exists"
+    # create_user 不传 password 时会生成不可用密码，所以这里手动 set_password。
     user = User.objects.create_user(username=username)
     user.set_password(raw_password or student_id)
     user.save()
@@ -640,7 +666,7 @@ def login_view(request):
     """处理登录页展示与账号认证。"""
     if request.user.is_authenticated:
         return redirect("club:dashboard")
-    form = LoginForm(request.POST or None)
+    form = LoginForm(data=request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = authenticate(
             request,
@@ -667,7 +693,7 @@ def _activities_visible_qs(user):
         status=ActivityStatus.PUBLISHED,
         launch_approval_status=ActivityLaunchApprovalStatus.APPROVED,
     )
-    profile = user.profile
+    profile = user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         return qs
     joined_ids = _get_joined_club_ids(profile)
@@ -679,7 +705,7 @@ def _activities_visible_qs(user):
 @login_required
 def dashboard(request):
     """根据角色分流到对应首页入口。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         return redirect("club:club_list")
     return redirect("club:my_clubs")
@@ -688,9 +714,9 @@ def dashboard(request):
 @login_required
 def profile_view(request):
     """展示并更新当前用户个人资料。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     form = ProfileForm(
-        request.POST or None,
+        data=request.POST or None,
         initial={
             "phone": profile.phone,
             "email": profile.email,
@@ -727,7 +753,7 @@ def profile_view(request):
 
 def reset_password_view(request):
     """通过学号/手机号/邮箱找回并重置密码。"""
-    form = ResetPasswordForm(request.POST or None)
+    form = ResetPasswordForm(data=request.POST or None)
     if request.method == "POST" and form.is_valid():
         account = form.cleaned_data["account"]
         profile = MemberProfile.objects.filter(student_id=account).first() or MemberProfile.objects.filter(phone=account).first()
@@ -762,7 +788,7 @@ def club_list(request):
         ClubInfo.objects.annotate(active_member_count=Count("memberships", filter=Q(memberships__is_active=True)))
         .order_by("name")
     )
-    profile = request.user.profile
+    profile = request.user.memberprofile
     is_super_admin = profile.role == RoleChoices.SUPER_ADMIN
     manageable_ids = set(_get_manageable_club_ids(profile))
     pending_map = {}
@@ -804,13 +830,13 @@ def club_list(request):
 def club_detail(request, pk):
     """社团详情入口：按用户身份重定向到合适页面。"""
     get_object_or_404(ClubInfo, pk=pk)
-    return redirect(_club_entry_redirect_url(request.user.profile, pk))
+    return redirect(_club_entry_redirect_url(request.user.memberprofile, pk))
 
 
 @login_required
 def my_clubs(request):
     """展示当前用户加入的社团及身份信息。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     manageable_ids = set(_get_manageable_club_ids(profile))
     pending_map = {}
     if manageable_ids:
@@ -839,7 +865,7 @@ def my_clubs(request):
 @login_required
 def my_club_detail(request, pk):
     """展示用户在指定社团的工作台详情。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         club = get_object_or_404(ClubInfo, pk=pk)
         club_identity = None
@@ -901,7 +927,7 @@ def my_club_detail(request, pk):
 @login_required
 def club_info_view(request):
     """社团信息入口：优先跳转到主社团详情。"""
-    club = _get_primary_joined_club(request.user.profile)
+    club = _get_primary_joined_club(request.user.memberprofile)
     if club:
         return redirect("club:my_club_detail", pk=club.pk)
     messages.info(request, "你尚未加入社团，可先通过社团列表浏览并提交入社申请")
@@ -911,7 +937,8 @@ def club_info_view(request):
 @login_required
 def club_info_edit(request, club_pk=None):
     """维护社团基础资料与社团公告。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
+    # 超管必须从具体社团进入；普通用户需先证明自己在该社团且具备资料维护权限。
     if club_pk and profile.role == RoleChoices.SUPER_ADMIN:
         club = get_object_or_404(ClubInfo, pk=club_pk)
     elif club_pk:
@@ -928,22 +955,24 @@ def club_info_edit(request, club_pk=None):
     editing_notice = Notice.objects.filter(pk=request.GET.get("notice"), club=club).first()
     can_club_logo = _can_upload_club_logo(profile, club) or profile.role == RoleChoices.SUPER_ADMIN
 
+    # 同页两个表单共存时用 prefix 区分字段名，避免 club-name 与 notice-title 等字段冲突。
     club_form = ClubInfoForm(
-        request.POST or None,
-        request.FILES or None,
+        data=request.POST or None,
+        files=request.FILES or None,
         instance=club,
         prefix="club",
         include_logo=can_club_logo,
     )
-    notice_form = NoticeForm(request.POST or None, instance=editing_notice, prefix="notice")
+    notice_form = NoticeForm(data=request.POST or None, instance=editing_notice, prefix="notice")
     notice_form.fields["target_department"].queryset = Department.objects.filter(club=club)
 
     if request.method == "POST":
         action = request.POST.get("action")
+        # action 决定本次提交处理哪个表单，模板中的按钮/隐藏域会传入该值。
         if action == "save_club":
             club_form = ClubInfoForm(
-                request.POST,
-                request.FILES,
+                data=request.POST,
+                files=request.FILES,
                 instance=club,
                 prefix="club",
                 include_logo=can_club_logo,
@@ -953,9 +982,10 @@ def club_info_edit(request, club_pk=None):
                 messages.success(request, "社团信息已更新")
                 return redirect("club:club_info_manage", club_pk=club.pk)
         elif action in ("save_notice", "save_notice_publish"):
+            # 保存公告时始终强制绑定当前社团，防止用户篡改表单提交到别的社团。
             notice_id = request.POST.get("notice_id")
             instance = Notice.objects.filter(pk=notice_id, club=club).first() if notice_id else None
-            notice_form = NoticeForm(request.POST, instance=instance, prefix="notice")
+            notice_form = NoticeForm(data=request.POST, instance=instance, prefix="notice")
             notice_form.fields["target_department"].queryset = Department.objects.filter(club=club)
             if notice_form.is_valid():
                 notice = notice_form.save(commit=False)
@@ -989,12 +1019,16 @@ def club_info_edit(request, club_pk=None):
 @login_required
 def department_logo_edit(request, club_pk, dept_pk):
     """上传或更新指定部门标志。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     club = _resolve_club_super_or_joined(profile, club_pk)
     department = get_object_or_404(Department, pk=dept_pk, club=club)
     if profile.role != RoleChoices.SUPER_ADMIN and not _can_upload_department_logo(profile, department):
         raise PermissionDenied("无权上传该部门的标志")
-    form = DepartmentLogoForm(request.POST or None, request.FILES or None, instance=department)
+    form = DepartmentLogoForm(
+        data=request.POST or None,
+        files=request.FILES or None,
+        instance=department,
+    )
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "部门标志已更新")
@@ -1009,7 +1043,7 @@ def department_logo_edit(request, club_pk, dept_pk):
 @login_required
 def org_structure_view(request, club_pk=None):
     """组织架构入口：统一重定向到部门管理页。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN and club_pk:
         club = get_object_or_404(ClubInfo, pk=club_pk)
     else:
@@ -1020,7 +1054,7 @@ def org_structure_view(request, club_pk=None):
 @login_required
 def department_manage(request):
     """部门管理入口：定位到当前可管理社团。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         messages.info(request, "请从社团列表进入具体社团后再管理部门")
         return redirect("club:club_list")
@@ -1032,10 +1066,11 @@ def department_manage(request):
 @transaction.atomic
 def department_club_manage(request, club_pk):
     """管理某社团的部门新增、负责人调整与删除。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     club = _resolve_club_super_or_joined(profile, club_pk)
     can_manage = profile.role == RoleChoices.SUPER_ADMIN or club.pk in _get_manageable_club_ids(profile)
 
+    # 管理层部门只承载社长/副社长，不在普通部门列表里展示或编辑。
     departments = list(
         Department.objects.filter(club=club).exclude(name="管理层").order_by("name"),
     )
@@ -1052,6 +1087,7 @@ def department_club_manage(request, club_pk):
 
     department_rows = []
     for d in departments:
+        # 每行带一个独立 prefix 的 DepartmentForm，模板可在折叠区直接编辑该部门。
         department_rows.append(
             {
                 "department": d,
@@ -1062,7 +1098,7 @@ def department_club_manage(request, club_pk):
             }
         )
 
-    create_form = DepartmentWithHeadForm(club, request.POST or None, prefix="deptnew") if can_manage else None
+    create_form = DepartmentWithHeadForm(club, data=request.POST or None, prefix="deptnew") if can_manage else None
     candidates = (
         MemberProfile.objects.filter(memberships__club=club, memberships__is_active=True)
         .exclude(role=RoleChoices.SUPER_ADMIN)
@@ -1075,9 +1111,10 @@ def department_club_manage(request, club_pk):
             raise PermissionDenied("无权管理部门")
         action = request.POST.get("action")
         if action == "create_department":
-            create_form = DepartmentWithHeadForm(club, request.POST, prefix="deptnew")
+            create_form = DepartmentWithHeadForm(club, data=request.POST, prefix="deptnew")
             if create_form.is_valid():
                 name = (create_form.cleaned_data["name"] or "").strip()
+                # 「管理层」是系统保留部门名，避免用户创建同名业务部门破坏岗位逻辑。
                 if name == "管理层":
                     messages.error(request, "不能使用「管理层」作为部门名称")
                     return redirect("club:club_department_manage", club_pk=club.pk)
@@ -1103,7 +1140,7 @@ def department_club_manage(request, club_pk):
             if dept.name == "管理层":
                 messages.error(request, "不能编辑「管理层」")
                 return redirect("club:club_department_manage", club_pk=club.pk)
-            info_form = DepartmentForm(request.POST, instance=dept, prefix=f"deptinfo_{dept.pk}")
+            info_form = DepartmentForm(data=request.POST, instance=dept, prefix=f"deptinfo_{dept.pk}")
             if info_form.is_valid():
                 name = (info_form.cleaned_data["name"] or "").strip()
                 if name == "管理层":
@@ -1125,6 +1162,7 @@ def department_club_manage(request, club_pk):
                 messages.error(request, "不能调整管理层负责人")
                 return redirect("club:club_department_manage", club_pk=club.pk)
             target_id = request.POST.get("head_profile_id")
+            # 部门负责人必须是本社团在籍成员，不能直接选择高级管理员账号。
             target = (
                 MemberProfile.objects.filter(
                     memberships__club=club,
@@ -1177,9 +1215,9 @@ def position_manage(request, club_pk=None):
     """
     # 类型提示说明：
     # login_required 已保证运行时 request.user 非匿名，但静态类型检查器仍可能推断为 User | AnonymousUser。
-    # 这里做一次显式 cast，避免 "找不到 profile" 的误报。
+    # 这里做一次显式 cast，避免 "找不到 memberprofile" 的误报。
     user = cast(User, request.user)
-    profile = user.profile
+    profile = user.memberprofile
     # 第一步：确定“当前操作的社团”并做权限校验。
     # 超管必须显式带 club_pk；其他用户必须对目标社团具备管理权限。
     if profile.role == RoleChoices.SUPER_ADMIN:
@@ -1320,7 +1358,7 @@ def position_manage(request, club_pk=None):
 @login_required
 def club_member_list(request, club_pk):
     """查看指定社团成员及其岗位标签。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         club = get_object_or_404(ClubInfo, pk=club_pk)
     else:
@@ -1339,8 +1377,9 @@ def club_member_list(request, club_pk):
 def get_visible_notices(user, club=None):
     """按用户身份和公告范围返回可见公告查询集。"""
     now = timezone.now()
+    # 只有已发布且发布时间到达的公告才进入成员端可见范围。
     qs = Notice.objects.filter(status=NoticeStatus.PUBLISHED, publish_at__lte=now)
-    profile = user.profile
+    profile = user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         notices = qs.order_by("-pinned", "-publish_at")
         return notices.filter(club=club) if club else notices
@@ -1358,6 +1397,7 @@ def get_visible_notices(user, club=None):
         ).values_list("department_id", flat=True)
     )
     notices = (
+        # ALL 面向该社团全员；ROLE/DEPARTMENT 进一步按成员身份或任职部门过滤。
         qs.filter(club_id__in=joined_ids)
         .filter(
             models.Q(scope=NoticeScope.ALL)
@@ -1399,6 +1439,7 @@ def notice_eligible_profile_ids(notice):
     if notice.scope == NoticeScope.DEPARTMENT:
         if not notice.target_department_id:
             return set()
+        # 部门公告只统计该部门当前在任成员，且必须仍是社团在籍成员。
         assign_ids = set(
             MemberAssignment.objects.filter(
                 department_id=notice.target_department_id,
@@ -1428,7 +1469,7 @@ def _notice_read_stats_bundle(notice):
 @login_required
 def notice_list(request, club_pk=None):
     """展示当前用户可见的公告列表。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         if club_pk:
             club = get_object_or_404(ClubInfo, pk=club_pk)
@@ -1445,7 +1486,7 @@ def notice_list(request, club_pk=None):
         return redirect("club:club_list")
     club = _require_joined_club(profile, club_pk) if club_pk else None
     notices = get_visible_notices(request.user, club=club)
-    read_ids = set(request.user.profile.notice_reads.values_list("notice_id", flat=True))
+    read_ids = set(request.user.memberprofile.notice_reads.values_list("notice_id", flat=True))
     return render(
         request,
         "club/notice_list.html",
@@ -1456,7 +1497,7 @@ def notice_list(request, club_pk=None):
 @login_required
 def notice_detail(request, pk):
     """展示单条公告详情及已读统计信息。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     notice = get_object_or_404(Notice, pk=pk)
     if profile.role != RoleChoices.SUPER_ADMIN:
         notice = get_object_or_404(get_visible_notices(request.user), pk=notice.pk)
@@ -1488,7 +1529,7 @@ def notice_detail(request, pk):
 @require_POST
 def notice_mark_read(request, pk):
     """将当前用户对公告标记为已读。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         return HttpResponseForbidden("高级管理员无需标记已读")
     notice = get_object_or_404(Notice, pk=pk)
@@ -1507,7 +1548,7 @@ def notice_mark_read(request, pk):
 
 def notice_manage(request):
     """公告管理入口：重定向到社团信息维护页。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         messages.info(request, "请从社团列表进入具体社团后编辑公告")
         return redirect("club:club_list")
@@ -1517,7 +1558,7 @@ def notice_manage(request):
 
 def notice_edit(request, pk=None):
     """公告编辑入口：统一跳转到社团信息维护页。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         messages.info(request, "请从社团列表进入具体社团后编辑公告")
         return redirect("club:club_list")
@@ -1532,7 +1573,7 @@ def notice_edit(request, pk=None):
 def notice_action(request, pk, action, club_pk=None):
     """执行公告发布/撤回动作。"""
     notice = get_object_or_404(Notice, pk=pk)
-    profile = request.user.profile
+    profile = request.user.memberprofile
     target_club_pk = club_pk or notice.club_id
     if profile.role == RoleChoices.SUPER_ADMIN:
         get_object_or_404(ClubInfo, pk=target_club_pk)
@@ -1552,7 +1593,7 @@ def activity_list(request):
     """展示成员可报名的活动列表。"""
     activities = _activities_visible_qs(request.user).order_by("-start_time")
     my_reg_ids = set(
-        ActivityRegistration.objects.filter(profile=request.user.profile, status__in=[RegistrationStatus.REGISTERED, RegistrationStatus.MANUAL]).values_list("activity_id", flat=True)
+        ActivityRegistration.objects.filter(profile=request.user.memberprofile, status__in=[RegistrationStatus.REGISTERED, RegistrationStatus.MANUAL]).values_list("activity_id", flat=True)
     )
     return render(request, "club/activity_list.html", {"activities": activities, "my_reg_ids": my_reg_ids})
 
@@ -1561,7 +1602,7 @@ def activity_list(request):
 @reject_super_admin()
 def my_activities(request):
     """展示当前用户的活动报名记录。"""
-    registrations = ActivityRegistration.objects.filter(profile=request.user.profile).select_related("activity")
+    registrations = ActivityRegistration.objects.filter(profile=request.user.memberprofile).select_related("activity")
     return render(request, "club/my_activities.html", {"registrations": registrations})
 
 
@@ -1570,7 +1611,7 @@ def my_activities(request):
 @transaction.atomic
 def activity_register(request, pk):
     """提交活动报名。"""
-    joined_ids = _get_joined_club_ids(request.user.profile)
+    joined_ids = _get_joined_club_ids(request.user.memberprofile)
     activity = get_object_or_404(
         Activity.objects.select_for_update(),
         pk=pk,
@@ -1583,7 +1624,7 @@ def activity_register(request, pk):
         messages.error(request, "报名已截止")
         return redirect("club:activity_list")
     try:
-        reg, created = ActivityRegistration.objects.get_or_create(activity=activity, profile=request.user.profile)
+        reg, created = ActivityRegistration.objects.get_or_create(activity=activity, profile=request.user.memberprofile)
         if not created:
             reg.status = RegistrationStatus.REGISTERED
             reg.save(update_fields=["status"])
@@ -1600,7 +1641,7 @@ def activity_cancel(request, pk):
     """取消当前用户的活动报名。"""
     reg = ActivityRegistration.objects.filter(
         activity_id=pk,
-        profile=request.user.profile,
+        profile=request.user.memberprofile,
         status__in=[RegistrationStatus.REGISTERED, RegistrationStatus.MANUAL],
     ).select_related("activity").first()
     if not reg:
@@ -1619,7 +1660,7 @@ def activity_cancel(request, pk):
 @login_required
 def activity_manage(request, club_pk=None):
     """社长/副社长管理本社团活动列表。"""
-    club_o = _require_leader_club(request.user.profile, club_pk)
+    club_o = _require_leader_club(request.user.memberprofile, club_pk)
     activities = (
         Activity.objects.filter(club=club_o)
         .annotate(reg_count=Count("registrations"))
@@ -1631,10 +1672,11 @@ def activity_manage(request, club_pk=None):
 @login_required
 def activity_edit(request, pk=None, club_pk=None):
     """创建或编辑活动草稿。"""
-    club_o = _require_leader_club(request.user.profile, club_pk)
+    club_o = _require_leader_club(request.user.memberprofile, club_pk)
     instance = Activity.objects.filter(pk=pk, club=club_o).first() if pk else None
-    form = ActivityForm(request.POST or None, instance=instance)
+    form = ActivityForm(data=request.POST or None, instance=instance)
     if request.method == "POST" and form.is_valid():
+        # 审批后再改标题/时间/地点等关键信息，需要重新走发起审批。
         requires_resubmission = instance is not None and activity_launch_edit_resets_approval(instance, form.changed_data)
         obj = form.save(commit=False)
         obj.owner = request.user
@@ -1708,7 +1750,7 @@ def finalize_launch_status_when_activity_canceled(activity):
 @require_POST
 def activity_submit_launch_approval(request, pk, club_pk=None):
     """提交活动发起审批到高级管理员。"""
-    club_o = _require_leader_club(request.user.profile, club_pk)
+    club_o = _require_leader_club(request.user.memberprofile, club_pk)
     activity = get_object_or_404(Activity, pk=pk, club=club_o)
     if activity.launch_approval_status not in (
         ActivityLaunchApprovalStatus.NOT_SUBMITTED,
@@ -1734,7 +1776,7 @@ def activity_submit_launch_approval(request, pk, club_pk=None):
 @require_POST
 def activity_withdraw_launch_approval(request, pk, club_pk=None):
     """撤回已提交的活动发起审批。"""
-    club_o = _require_leader_club(request.user.profile, club_pk)
+    club_o = _require_leader_club(request.user.memberprofile, club_pk)
     activity = get_object_or_404(Activity, pk=pk, club=club_o)
     if activity.launch_approval_status != ActivityLaunchApprovalStatus.PENDING_SUPER:
         messages.error(request, "当前状态不可撤回审批")
@@ -1755,7 +1797,7 @@ def activity_withdraw_launch_approval(request, pk, club_pk=None):
 @login_required
 def activity_action(request, pk, action, club_pk=None):
     """执行活动状态动作（发布/取消/结束）。"""
-    club_o = _require_leader_club(request.user.profile, club_pk)
+    club_o = _require_leader_club(request.user.memberprofile, club_pk)
     activity = get_object_or_404(Activity, pk=pk, club=club_o)
     mapping = {"cancel": ActivityStatus.CANCELED, "finish": ActivityStatus.FINISHED, "publish": ActivityStatus.PUBLISHED}
     if action in mapping:
@@ -1773,7 +1815,7 @@ def activity_action(request, pk, action, club_pk=None):
 @login_required
 def activity_stats(request, pk, club_pk=None):
     """查看活动报名统计明细。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         activity = get_object_or_404(Activity, pk=pk)
         club_o = activity.club
@@ -1807,7 +1849,7 @@ def activity_stats(request, pk, club_pk=None):
 @reject_super_admin()
 def apply_join(request):
     """提交入社申请。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     joined_ids = set(_get_joined_club_ids(profile))
     club_qs = ClubInfo.objects.exclude(pk__in=joined_ids).order_by("name")
     initial = {}
@@ -1826,7 +1868,7 @@ def apply_join(request):
                 initial["club"] = cid
         except (TypeError, ValueError):
             pass
-    form = JoinApplicationForm(request.POST or None, initial=initial, club_queryset=club_qs)
+    form = JoinApplicationForm(data=request.POST or None, initial=initial, club_queryset=club_qs)
     if request.method == "POST" and form.is_valid():
         if form.cleaned_data["club"].pk in joined_ids:
             form.add_error("club", "你已加入该社团，无需重复申请")
@@ -1845,14 +1887,14 @@ def apply_join(request):
 @reject_super_admin()
 def my_applications(request):
     """查看当前用户提交的入社申请记录。"""
-    apps = JoinApplication.objects.filter(student_id=request.user.profile.student_id)
+    apps = JoinApplication.objects.filter(student_id=request.user.memberprofile.student_id)
     return render(request, "club/my_applications.html", {"apps": apps})
 
 
 @login_required
 def application_manage(request, club_pk=None):
     """社团侧/超管侧查看入社申请列表。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         club_o = get_object_or_404(ClubInfo, pk=club_pk)
     else:
@@ -1865,7 +1907,7 @@ def application_manage(request, club_pk=None):
 @transaction.atomic
 def application_review(request, pk, action, club_pk=None):
     """审批单条入社申请并在通过时补全成员账号关系。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         club_o = get_object_or_404(ClubInfo, pk=club_pk)
     else:
@@ -1874,6 +1916,7 @@ def application_review(request, pk, action, club_pk=None):
     if action not in {"approve", "reject", "return"}:
         return redirect("club:club_application_manage", club_pk=club_o.pk)
     if profile.role != RoleChoices.SUPER_ADMIN and action == "reject":
+        # 当前业务规则：社团侧只能通过或退回，高级管理员才可拒绝。
         messages.error(request, "社团侧审批仅支持通过或退回")
         return redirect("club:club_application_manage", club_pk=club_o.pk)
     status_map = {
@@ -1887,6 +1930,7 @@ def application_review(request, pk, action, club_pk=None):
     app.reviewed_at = timezone.now()
     app.save()
     if action == "approve":
+        # 若申请学号还没有登录账号，则用学号创建一个默认账号，初始密码为 12345678。
         username = app.student_id
         user, created = User.objects.get_or_create(
             username=username, defaults={"email": app.email}
@@ -1911,6 +1955,7 @@ def application_review(request, pk, action, club_pk=None):
         if app.email and not profile.email:
             profile.email = app.email
         if not profile.club_id:
+            # 只在用户没有主社团时设置，避免覆盖其原先默认社团。
             profile.club = app.club
         profile.save()
         _ensure_membership(profile, app.club)
@@ -1948,13 +1993,13 @@ def _get_active_assignment_by_position(club, position_name):
 def _is_current_president(user, club):
     """判断当前用户是否是社团在任社长。"""
     assignment = _get_active_assignment_by_position(club, Position.NameChoices.PRESIDENT)
-    return bool(assignment and assignment.profile_id == user.profile.id)
+    return bool(assignment and assignment.profile_id == user.memberprofile.id)
 
 
 @login_required
 def leadership_manage(request):
     """负责人管理入口：定位到岗位管理页。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         messages.info(request, "请从社团列表进入具体社团后再操作")
         return redirect("club:club_list")
@@ -1966,7 +2011,7 @@ def leadership_manage(request):
 @transaction.atomic
 def leadership_transfer(request, club_pk=None):
     """执行社长与副社长的让位（岗位互换）。"""
-    profile = request.user.profile
+    profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         if not club_pk:
             return redirect("club:club_list")
@@ -2009,13 +2054,13 @@ def leadership_transfer(request, club_pk=None):
 @reject_super_admin()
 def club_creation_apply(request):
     """普通成员提交成立社团申请。"""
-    form = ClubCreationApplicationForm(request.POST or None)
+    form = ClubCreationApplicationForm(data=request.POST or None)
     if request.method == "POST" and form.is_valid():
-        if ClubCreationApplication.objects.filter(applicant=request.user.profile, status=ApplicationStatus.PENDING).exists():
+        if ClubCreationApplication.objects.filter(applicant=request.user.memberprofile, status=ApplicationStatus.PENDING).exists():
             messages.error(request, "你已有待审核的成立社团申请")
             return redirect("club:my_club_creation_applications")
         obj = form.save(commit=False)
-        obj.applicant = request.user.profile
+        obj.applicant = request.user.memberprofile
         obj.save()
         messages.success(request, "成立社团申请已提交，等待高级管理员审批")
         return redirect("club:my_club_creation_applications")
@@ -2030,7 +2075,7 @@ def club_creation_apply(request):
 @reject_super_admin()
 def my_club_creation_applications(request):
     """查看当前用户的成立社团申请记录。"""
-    apps = ClubCreationApplication.objects.filter(applicant=request.user.profile)
+    apps = ClubCreationApplication.objects.filter(applicant=request.user.memberprofile)
     return render(request, "club/my_club_creation_applications.html", {"apps": apps})
 
 
@@ -2062,6 +2107,7 @@ def club_creation_review(request, pk, action):
 
     profile = app.applicant
     if action == "approve":
+        # 通过前先检查申请人是否已担任副社长，以及社团名是否重复。
         try:
             _ensure_may_become_president(profile)
         except ValueError as e:
@@ -2091,6 +2137,7 @@ def club_creation_review(request, pk, action):
         return redirect("club:club_creation_manage")
 
     if action == "approve":
+        # 审批通过后立即创建社团、发放管理员角色、加入社团并任命社长。
         club = ClubInfo.objects.create(
             name=app.club_name,
             intro=app.club_intro or "",
@@ -2136,7 +2183,7 @@ def super_admin_user_manage(request):
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "create_single":
-            create_form = SuperAdminCreateUserForm(request.POST, prefix="single")
+            create_form = SuperAdminCreateUserForm(data=request.POST, prefix="single")
             if create_form.is_valid():
                 username = (create_form.cleaned_data.get("username") or "").strip()
                 student_id = create_form.cleaned_data["student_id"].strip()
@@ -2151,7 +2198,7 @@ def super_admin_user_manage(request):
                         messages.error(request, "学号已存在，未创建账号")
                 return redirect("club:super_admin_user_manage")
         elif action == "create_batch":
-            batch_form = SuperAdminBatchCreateUserForm(request.POST, prefix="batch")
+            batch_form = SuperAdminBatchCreateUserForm(data=request.POST, prefix="batch")
             if batch_form.is_valid():
                 start_id = batch_form.cleaned_data["student_id_start"].strip()
                 end_id = batch_form.cleaned_data["student_id_end"].strip()
@@ -2175,6 +2222,7 @@ def super_admin_user_manage(request):
                     )
                     return redirect("club:super_admin_user_manage")
         elif action == "bulk_update":
+            # 批量保存用户名和新密码；空密码表示不修改原密码。
             qs = MemberProfile.objects.select_related("user").order_by("role", "student_id", "id")
             errors = []
             for profile in qs:
@@ -2204,6 +2252,7 @@ def super_admin_user_manage(request):
                 messages.success(request, "部分用户已保存，请处理上述错误后重试")
             return redirect("club:super_admin_user_manage")
         elif action == "bulk_delete":
+            # 批量删除时跳过自己和其他高级管理员，避免误删系统管理入口。
             raw_ids = request.POST.getlist("delete_id")
             deleted = 0
             skipped_self = 0
@@ -2266,7 +2315,7 @@ def super_admin_activity_list(request):
             | models.Q(status=ActivityStatus.FINISHED)
         )
         .exclude(status=ActivityStatus.CANCELED)
-        .select_related("club", "owner", "owner__profile")
+        .select_related("club", "owner", "owner__memberprofile")
         .order_by("-start_time", "-pk")
     )
     return render(request, "club/super_admin_activity_list.html", {"activities": activities})
@@ -2300,14 +2349,14 @@ def activity_launch_approval_manage(request):
     pending = (
         Activity.objects.filter(launch_approval_status=ActivityLaunchApprovalStatus.PENDING_SUPER)
         .exclude(status=ActivityStatus.CANCELED)
-        .select_related("owner", "owner__profile", "club")
+        .select_related("owner", "owner__memberprofile", "club")
         .order_by("-start_time", "-pk")
     )
     # 发起审批状态为「审批通过」的活动（含历史数据；优先按审核时间倒序）
     approved = (
         Activity.objects.filter(launch_approval_status=ActivityLaunchApprovalStatus.APPROVED)
         .exclude(status=ActivityStatus.CANCELED)
-        .select_related("owner", "owner__profile", "club", "launch_reviewed_by", "launch_reviewed_by__profile")
+        .select_related("owner", "owner__memberprofile", "club", "launch_reviewed_by", "launch_reviewed_by__memberprofile")
         .order_by(models.F("launch_reviewed_at").desc(nulls_last=True), "-start_time", "-pk")[:100]
     )
     return render(
@@ -2355,5 +2404,3 @@ def activity_launch_review(request, pk, action):
     else:
         return redirect("club:activity_launch_approval_manage")
     return redirect("club:activity_launch_approval_manage")
-
-# Create your views here.

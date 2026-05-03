@@ -1,3 +1,11 @@
+"""
+最小演示数据命令。
+
+执行：python manage.py seed_demo
+用途：快速创建 1 个高级管理员、1 个社团管理员、1 个普通成员和一个默认社团，
+便于本地首次启动后直接登录体验主要流程。
+"""
+
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
@@ -9,6 +17,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         user_model = get_user_model()
+        # 高级管理员账号：可以进入系统管理、成立社团审批、活动发起审批等模块。
         super_admin_user, _ = user_model.objects.get_or_create(username="superadmin", defaults={"email": "superadmin@example.com"})
         super_admin_user.set_password("superadmin12345")
         super_admin_user.is_staff = True
@@ -25,6 +34,7 @@ class Command(BaseCommand):
             },
         )
 
+        # 社团管理员账号：后续会被任命为默认社团的社长。
         admin_user, _ = user_model.objects.get_or_create(username="admin", defaults={"email": "admin@example.com"})
         admin_user.set_password("admin12345")
         admin_user.save()
@@ -38,10 +48,12 @@ class Command(BaseCommand):
             },
         )
 
+        # 普通成员账号：用于体验成员端入社、活动报名等页面。
         member_user, _ = user_model.objects.get_or_create(username="20230001", defaults={"email": "member@example.com"})
         member_user.set_password("member12345")
         member_user.save()
 
+        # 默认社团及其管理层岗位，用于支撑管理员权限判断。
         default_club, _ = ClubInfo.objects.get_or_create(pk=1, defaults={"name": "学生社团管理系统"})
         admin_profile.club = default_club
         admin_profile.save(update_fields=["club"])

@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+我的入社申请记录页。
+视图：my_applications。
+关键上下文：apps；按当前用户 profile.student_id 查询申请记录。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
 {% endblock %}

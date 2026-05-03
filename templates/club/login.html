@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+登录页。
+视图：login_view。
+关键上下文：form=LoginForm；提交后交给 MultiAccountBackend 支持学号/手机号/邮箱/用户名登录。
+{% endcomment %}
 {% block content %}
 <h2>登录</h2>
 <div class="auth-wrap">

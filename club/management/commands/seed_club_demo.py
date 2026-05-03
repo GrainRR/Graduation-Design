@@ -195,6 +195,7 @@ class Command(BaseCommand):
         created_clubs = []
         for row in CLUB_ROWS:
             name, intro, contact, principal_name, uname, sid, phone, email = row
+            # 1. 创建或更新社团基础资料，确保重复执行不会产生重复社团。
             club, created = ClubInfo.objects.get_or_create(
                 name=name,
                 defaults={
@@ -210,6 +211,7 @@ class Command(BaseCommand):
                 club.save(update_fields=["intro", "contact", "principal"])
             created_clubs.append(club.name)
 
+            # 2. 创建社长账号和业务档案，并把他加入对应社团。
             user, u_created = User.objects.get_or_create(username=uname, defaults={"email": email})
             user.set_password(DEMO_PASSWORD)
             user.email = email
@@ -227,6 +229,7 @@ class Command(BaseCommand):
             )
             ClubMembership.objects.get_or_create(profile=profile, club=club, defaults={"is_active": True})
 
+            # 3. 创建「管理层」部门和社长/副社长岗位，权限判断依赖这些任职记录。
             dept_mgmt, _ = Department.objects.get_or_create(
                 club=club,
                 name="管理层",
@@ -249,6 +252,7 @@ class Command(BaseCommand):
                 defaults={"is_active": True, "end_date": None},
             )
 
+            # 4. 创建普通业务部门，只保存部门资料，不强制任命部门负责人。
             for dname, ddesc, dcontact in DEPARTMENT_PAIRS.get(name, []):
                 Department.objects.update_or_create(
                     club=club,
@@ -256,6 +260,7 @@ class Command(BaseCommand):
                     defaults={"description": ddesc, "contact": dcontact, "is_active": True},
                 )
 
+            # 5. 创建普通成员账号并加入当前社团。
             for uname_m, sid_m, phone_m, email_m in MEMBERS_BY_CLUB.get(name, []):
                 u_m, _ = User.objects.get_or_create(username=uname_m, defaults={"email": email_m})
                 u_m.set_password(DEMO_PASSWORD)
@@ -273,6 +278,7 @@ class Command(BaseCommand):
                 )
                 ClubMembership.objects.get_or_create(profile=prof_m, club=club, defaults={"is_active": True})
 
+            # 6. 创建公告，使用 update_or_create 便于反复运行脚本刷新内容。
             for title, content, pinned in NOTICES_BY_CLUB.get(name, []):
                 Notice.objects.update_or_create(
                     club=club,

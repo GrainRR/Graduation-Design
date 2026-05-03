@@ -1,6 +1,11 @@
 {% extends 'club/base.html' %}
+{% comment %}
+个人资料页。
+视图：profile_view。
+关键上下文：form、role_label、assignments、joined_clubs，用于展示当前账号资料、角色和在任/入社信息。
+{% endcomment %}
 {% block page_back %}
-{% if user.profile.role == 'super_admin' %}
+{% if user.memberprofile.role == 'super_admin' %}
 <p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
 {% else %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
@@ -16,9 +21,9 @@
     <aside class="profile-side">
         <h3>组织与职务</h3>
         <p class="muted" style="margin-top:0;">用户类别</p>
-        {% if user.profile.role == 'super_admin' %}
+        {% if user.memberprofile.role == 'super_admin' %}
         <p><span class="badge-role super">{{ role_label }}</span></p>
-        {% elif user.profile.role == 'club_admin' %}
+        {% elif user.memberprofile.role == 'club_admin' %}
         <p><span class="badge-role admin">{{ role_label }}</span></p>
         {% else %}
         <p><span class="badge-role member">{{ role_label }}</span></p>

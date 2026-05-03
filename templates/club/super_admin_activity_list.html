@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+高级管理员活动监管列表。
+视图：super_admin_activity_list。
+关键上下文：activities；用于查看待审批/已通过/已结束活动并在允许状态下撤销活动。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
 {% endblock %}

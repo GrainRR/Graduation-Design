@@ -1,4 +1,8 @@
 {% extends 'club/base.html' %}
+{% comment %}
+旧版负责人管理模板。
+当前负责人任命逻辑集中在 club_position_manage.html，本模板保留作早期单副社长流程参考。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
 {% endblock %}

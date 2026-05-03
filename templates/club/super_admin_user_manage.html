@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+高级管理员用户管理页。
+视图：super_admin_user_manage。
+关键上下文：users、create_form、batch_form；同页支持单个创建、批量创建、批量改名/改密和批量删除。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
 {% endblock %}
@@ -6,6 +11,7 @@
 <h2>用户管理（高级管理员）</h2>
 
 <div class="stack-grid">
+    {% comment %}单个创建：用户名可空，后端会默认使用学号作为用户名。{% endcomment %}
     <div class="section-card">
         <h3>单个新增</h3>
         <form method="post" class="admin-form-grid">
@@ -45,6 +51,7 @@
             </div>
         </form>
     </div>
+    {% comment %}批量创建：按纯数字学号闭区间生成账号，视图中限制一次最多 1000 个。{% endcomment %}
     <div class="section-card">
         <h3>学号区间批量新增</h3>
         <form method="post" class="admin-form-grid">
@@ -86,7 +93,8 @@
 </div>
 
 <form method="post" class="user-manage-users-form">
-    {% csrf_token %}
+{% comment %}用户列表支持批量改名/改密；删除时后端会跳过自己和高级管理员。{% endcomment %}
+{% csrf_token %}
     <div class="users-table-toolbar">
         <h3>全部用户</h3>
         <div class="users-table-toolbar-actions">

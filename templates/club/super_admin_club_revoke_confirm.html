@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+高级管理员撤销社团确认页。
+视图：super_admin_club_revoke。
+关键上下文：club；POST 后会删除该社团及级联相关数据。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
 {% endblock %}

@@ -1,5 +1,9 @@
 ﻿{% extends 'club/base.html' %}
 {% block content %}
+{% comment %}
+旧版公告管理模板。
+当前公告新建/编辑/发布/撤回集中在 club_info_manage.html，本模板保留作简单列表参考。
+{% endcomment %}
 <h2>公告管理</h2>
 <p><a href="{% url 'club:notice_new' %}">新建公告</a></p>
 <table><tr><th>标题</th><th>状态</th><th>操作</th></tr>

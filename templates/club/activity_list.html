@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+成员端活动列表页。
+视图：activity_list。
+关键上下文：activities、my_reg_ids；只展示已通过发起审批并发布、且当前用户所属社团可见的活动。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>
 {% endblock %}

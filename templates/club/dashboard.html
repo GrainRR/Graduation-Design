@@ -1,8 +1,12 @@
 {% extends 'club/base.html' %}
+{% comment %}
+旧版首页模板。
+当前 dashboard 视图会按角色直接重定向到社团列表或我的社团，本模板保留作备用入口参考。
+{% endcomment %}
 {% block content %}
 <h2>系统首页</h2>
 <div class="stats">
-    {% if user.profile.role != 'super_admin' %}
+    {% if user.memberprofile.role != 'super_admin' %}
     <div class="stat-card">
         <div class="label">公告数量</div>
         <div class="value">{{ notices_count }}</div>
@@ -12,13 +16,13 @@
         <div class="label">进行中活动</div>
         <div class="value">{{ activities_count }}</div>
     </div>
-    {% if user.profile.role == 'club_admin' %}
+    {% if user.memberprofile.role == 'club_admin' %}
     <div class="stat-card">
         <div class="label">待审批入社申请</div>
         <div class="value">{{ pending_app_count }}</div>
     </div>
     {% endif %}
-    {% if user.profile.role == 'super_admin' %}
+    {% if user.memberprofile.role == 'super_admin' %}
     <div class="stat-card">
         <div class="label">待审批成立社团申请</div>
         <div class="value">{{ pending_club_creation_count }}</div>

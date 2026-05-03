@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+我的活动报名记录页。
+视图：my_activities。
+关键上下文：registrations；可取消 registered/manual 状态的报名。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:activity_list' %}">返回活动列表</a></p>
 {% endblock %}

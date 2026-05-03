@@ -1,3 +1,10 @@
+"""
+表单层。
+
+这里集中定义页面提交数据如何映射到模型，以及页面上字段标签、控件类型、
+候选范围等输入约束。视图负责权限和业务流程，表单负责字段级校验与渲染。
+"""
+
 from django import forms
 from django.contrib.auth.forms import PasswordChangeForm
 
@@ -15,11 +22,15 @@ from .models import (
 
 
 class LoginForm(forms.Form):
+    """登录表单；账号字段会交给 MultiAccountBackend 支持多种登录口径。"""
+
     account = forms.CharField(label="账号(学号/手机号/邮箱)", max_length=128)
     password = forms.CharField(label="密码", widget=forms.PasswordInput)
 
 
 class ProfileForm(forms.Form):
+    """个人资料编辑表单；只开放成员可自助维护的联系方式和学籍信息。"""
+
     phone = forms.CharField(label="手机号", max_length=32, required=False)
     email = forms.EmailField(label="邮箱", required=False)
     college = forms.CharField(label="学院", max_length=64, required=False)
@@ -27,16 +38,22 @@ class ProfileForm(forms.Form):
 
 
 class ResetPasswordForm(forms.Form):
+    """找回密码表单；通过账号字段定位 MemberProfile 后重置密码。"""
+
     account = forms.CharField(label="账号")
     new_password = forms.CharField(label="新密码", widget=forms.PasswordInput)
 
 
 class ClubLogoClearableFileInput(forms.ClearableFileInput):
+    """社团 logo 上传控件，使用自定义模板展示“清除当前图片”的复选框。"""
+
     template_name = "club/widgets/club_logo_clearable_file_input.html"
     clear_checkbox_label = "清除社团标志"
 
 
 class ClubInfoForm(forms.ModelForm):
+    """社团基础信息表单；logo 字段会按调用方权限动态隐藏。"""
+
     class Meta:
         model = ClubInfo
         fields = ["name", "intro", "charter", "contact", "principal", "logo"]
@@ -60,6 +77,8 @@ class ClubInfoForm(forms.ModelForm):
 
 
 class DepartmentLogoForm(forms.ModelForm):
+    """部门标志上传表单，供社长/副社长或对应部门负责人使用。"""
+
     class Meta:
         model = Department
         fields = ["logo"]
@@ -67,6 +86,8 @@ class DepartmentLogoForm(forms.ModelForm):
 
 
 class DepartmentForm(forms.ModelForm):
+    """部门资料编辑表单；用于部门管理列表里的折叠编辑区。"""
+
     class Meta:
         model = Department
         fields = ["name", "description", "contact"]
@@ -107,6 +128,8 @@ class DepartmentWithHeadForm(forms.Form):
 
 
 class PositionForm(forms.ModelForm):
+    """岗位维护表单；当前主流程更多使用固定岗位任命逻辑。"""
+
     class Meta:
         model = Position
         fields = ["department", "name", "description", "requirements", "is_active"]
@@ -120,6 +143,8 @@ class PositionForm(forms.ModelForm):
 
 
 class NoticeForm(forms.ModelForm):
+    """公告编辑表单；支持范围、定时发布、置顶和已读统计开关。"""
+
     class Meta:
         model = Notice
         fields = [
@@ -153,6 +178,8 @@ class NoticeForm(forms.ModelForm):
 
 
 class ActivityForm(forms.ModelForm):
+    """活动草稿表单；发起审批只依赖这些核心活动字段。"""
+
     class Meta:
         model = Activity
         fields = [
@@ -179,6 +206,8 @@ class ActivityForm(forms.ModelForm):
 
 
 class JoinApplicationForm(forms.ModelForm):
+    """入社申请表单；社团下拉列表由视图传入，排除已加入社团。"""
+
     class Meta:
         model = JoinApplication
         fields = ["club", "nickname", "student_id", "reason", "phone", "email"]
@@ -201,6 +230,8 @@ class JoinApplicationForm(forms.ModelForm):
 
 
 class ClubCreationApplicationForm(forms.ModelForm):
+    """成立社团申请表单；申请人由视图写入，成员端不可伪造。"""
+
     class Meta:
         model = ClubCreationApplication
         fields = ["club_name", "club_intro", "reason"]
@@ -212,16 +243,22 @@ class ClubCreationApplicationForm(forms.ModelForm):
 
 
 class SuperAdminCreateUserForm(forms.Form):
+    """高级管理员单个创建成员账号。"""
+
     username = forms.CharField(label="用户名（可选，留空则等于学号）", max_length=150, required=False)
     student_id = forms.CharField(label="学号", max_length=32)
     password = forms.CharField(label="密码（留空则与学号相同）", required=False, widget=forms.PasswordInput)
 
 
 class SuperAdminBatchCreateUserForm(forms.Form):
+    """高级管理员按学号闭区间批量创建成员账号。"""
+
     student_id_start = forms.CharField(label="起始学号", max_length=32)
     student_id_end = forms.CharField(label="结束学号", max_length=32)
     password = forms.CharField(label="统一密码（留空则每个账号密码=本学号）", required=False, widget=forms.PasswordInput)
 
 
 class SimplePasswordChangeForm(PasswordChangeForm):
+    """保留一个本地子类，便于后续统一定制密码修改样式或校验。"""
+
     pass

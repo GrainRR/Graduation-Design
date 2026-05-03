@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+入社申请管理页。
+视图：application_manage。
+关键上下文：club、apps；社团侧只显示通过/退回，高级管理员额外可拒绝并填写意见。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
 {% endblock %}
@@ -24,7 +29,7 @@
         <td>{{ a.reason|default:'-'|truncatechars:40 }}</td>
         <td>{{ a.get_status_display }}</td>
         <td>
-            {% if user.profile.role == 'super_admin' %}
+            {% if user.memberprofile.role == 'super_admin' %}
             <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'approve' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">通过</button></form>
             <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'reject' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="原因"><button type="submit">拒绝</button></form>
             <form method="post" action="{% url 'club:club_application_review' club.pk a.id 'return' %}" style="display:inline;">{% csrf_token %}<input name="comment" placeholder="意见"><button type="submit">退回</button></form>

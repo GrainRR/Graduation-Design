@@ -1,3 +1,5 @@
+"""公告已读统计迁移：为 Notice 增加 track_read_stats 开关。"""
+
 from django.db import migrations, models
 
 

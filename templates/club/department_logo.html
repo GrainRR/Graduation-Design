@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+部门标志上传页。
+视图：department_logo_edit。
+关键上下文：club、department、form=DepartmentLogoForm；权限在视图中校验。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back">
     <a class="btn" href="{% url 'club:club_department_manage' club.pk %}">返回部门管理</a>

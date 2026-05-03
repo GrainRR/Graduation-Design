@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+高级管理员活动发起审批页。
+视图：activity_launch_approval_manage。
+关键上下文：pending_activities、approved_activities；审批动作提交到 activity_launch_review。
+{% endcomment %}
 {% block content %}
 <h2>活动发起审批（高级管理员）</h2>
 <p class="muted">社长/副社长提交后，请在此查看活动标题与说明，并通过或驳回。通过后方可由社团侧发布活动。</p>
@@ -24,7 +29,7 @@
   <td>{{ a.title }}</td>
   <td><div class="activity-desc-cell">{{ a.description|default:'—'|linebreaksbr }}</div></td>
   <td>{{ a.start_time }} ~ {{ a.end_time }}</td>
-  <td>{% if a.owner %}{{ a.owner.profile.display_name }}{% else %}—{% endif %}</td>
+  <td>{% if a.owner %}{{ a.owner.memberprofile.display_name }}{% else %}—{% endif %}</td>
   <td class="cell-actions">
     <div class="op-group op-group--with-input">
     <form method="post" action="{% url 'club:activity_launch_review' a.id 'approve' %}">{% csrf_token %}<input name="comment" placeholder="意见（可选）"><button type="submit">通过</button></form>
@@ -56,10 +61,10 @@
   <td>{{ a.title }}</td>
   <td><div class="activity-desc-cell">{{ a.description|default:'—'|linebreaksbr }}</div></td>
   <td>{{ a.start_time }} ~ {{ a.end_time }}</td>
-  <td>{% if a.owner %}{{ a.owner.profile.display_name }}{% else %}—{% endif %}</td>
+  <td>{% if a.owner %}{{ a.owner.memberprofile.display_name }}{% else %}—{% endif %}</td>
   <td class="muted" style="font-size:13px;">
     {% if a.launch_reviewed_at %}{{ a.launch_reviewed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
-    {% if a.launch_reviewed_by %}<br>审核人：{{ a.launch_reviewed_by.profile.display_name }}{% endif %}
+    {% if a.launch_reviewed_by %}<br>审核人：{{ a.launch_reviewed_by.memberprofile.display_name }}{% endif %}
     {% if a.launch_review_comment %}<br>意见：{{ a.launch_review_comment }}{% endif %}
   </td>
 </tr>

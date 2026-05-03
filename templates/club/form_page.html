@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+通用表单页。
+多个视图复用它：activity_edit、apply_join、club_creation_apply。
+关键上下文：title、form、cancel_url；逐字段渲染便于统一显示错误和 help_text。
+{% endcomment %}
 {% block page_back %}
 {% if cancel_url %}
 <p class="page-back"><a class="btn" href="{{ cancel_url }}">返回</a></p>

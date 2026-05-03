@@ -17,4 +17,5 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Graduation_Design.settings')
 
+# ASGI 入口对象，异步服务器（如 uvicorn/daphne）会加载这个变量。
 application = get_asgi_application()

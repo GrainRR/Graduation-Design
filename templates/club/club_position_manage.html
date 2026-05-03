@@ -1,4 +1,10 @@
 {% extends 'club/base.html' %}
+{% comment %}
+人员职务管理页。
+视图：position_manage。
+关键上下文：president_assignment、vice_assignments、member_rows、candidates，以及超管专用的候选列表。
+超管可任命社长/批量设置副社长；普通社长只可任命副社长并执行让位。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a></p>
 {% endblock %}
@@ -7,6 +13,7 @@
 <p class="muted">{{ club.name }} 全体成员列表；不同颜色标签表示职务（部门负责人显示为「某某部门负责人」）。</p>
 
 {% if is_super_admin_positions %}
+{% comment %}高级管理员分支：可以直接任命社长，并以多选方式覆盖副社长最终名单。{% endcomment %}
 <div class="section-card" style="margin-bottom:18px;">
     <h3 style="margin-top:0;">高级管理员 · 职务任命</h3>
     <p class="muted" style="margin-top:0;">通过下拉栏任命社长、副社长；社长默认选中现任社长，副社长列表将现任副社长排在前面（可多选，不选表示清空所有副社长）。</p>
@@ -42,6 +49,7 @@
     </form>
 </div>
 {% elif is_president %}
+{% comment %}普通社长分支：只允许设置副社长和执行让位，不允许任命新社长。{% endcomment %}
 <div class="section-card" style="margin-bottom:18px;">
     <h3 style="margin-top:0;">社长操作</h3>
     <form method="post" style="margin-bottom:12px;">
@@ -71,6 +79,7 @@
 {% endif %}
 
 <h3>成员列表</h3>
+{% comment %}member_rows 已在 _personnel_member_rows 中组装好身份标签和入社申请补充信息。{% endcomment %}
 <table>
     <tr>
         <th>账号</th>

@@ -1,7 +1,13 @@
 {% extends 'club/base.html' %}
+{% comment %}
+社团信息与公告维护页。
+视图：club_info_edit。
+关键上下文：club_form、notice_form、editing_notice、notices、can_upload_club_logo、schedule_now。
+同页有两个表单，后端通过 action 和 prefix 区分“保存社团信息”与“保存公告”。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back">
-    {% if user.profile.role == 'super_admin' %}
+    {% if user.memberprofile.role == 'super_admin' %}
     <a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a>
     {% else %}
     <a class="btn" href="{% url 'club:my_club_detail' club.pk %}">返回社团工作区</a>
@@ -82,9 +88,10 @@
 </style>
 
 <div class="club-info-manage">
-    <h2>{% if user.profile.role == 'super_admin' %}编辑社团信息{% else %}维护社团信息{% endif %}</h2>
-    <p class="muted">{{ club.name }}：社团名称、简介、公告；{% if user.profile.role == 'super_admin' %}部门、人员职务与入社审批请使用下方入口。{% else %}社长/副社长可在此维护基础信息与公告。{% endif %}</p>
-    {% if user.profile.role == 'super_admin' %}
+    <h2>{% if user.memberprofile.role == 'super_admin' %}编辑社团信息{% else %}维护社团信息{% endif %}</h2>
+    <p class="muted">{{ club.name }}：社团名称、简介、公告；{% if user.memberprofile.role == 'super_admin' %}部门、人员职务与入社审批请使用下方入口。{% else %}社长/副社长可在此维护基础信息与公告。{% endif %}</p>
+    {% if user.memberprofile.role == 'super_admin' %}
+    {% comment %}超管从此处跳转到同一社团的部门、职务和入社审批页面。{% endcomment %}
     <div class="section-card" style="margin-bottom:16px;">
         <h3 style="margin-top:0;">人员与架构</h3>
         <p class="muted" style="margin-bottom:10px;">管理部门、核心职务（社长/副社长）及入社申请审批。</p>
@@ -95,11 +102,12 @@
         </div>
     </div>
     {% endif %}
-    {% if not can_upload_club_logo and user.profile.role != 'super_admin' %}
+    {% if not can_upload_club_logo and user.memberprofile.role != 'super_admin' %}
     <p class="muted">社团标志图片仅社长、副社长可上传；你可继续编辑文字信息。</p>
     {% endif %}
 
     <div class="stack-grid">
+        {% comment %}左侧：社团基础资料表单，字段来自 ClubInfoForm。{% endcomment %}
         <div class="section-card">
             <h3>基础信息</h3>
             <form method="post" enctype="multipart/form-data" class="info-manage-form">
@@ -129,6 +137,7 @@
                 </div>
             </form>
         </div>
+        {% comment %}右侧：公告表单，保存草稿与保存并发布通过不同 action 区分。{% endcomment %}
         <div class="section-card">
             <h3>{% if editing_notice %}编辑公告{% else %}新建公告{% endif %}</h3>
             <p class="muted" style="margin-top:0;">填写<strong>发布时间</strong>可定时上线：须为<strong>已发布</strong>状态且当前时间到达该时间后，成员端才可见。勾选<strong>是否置顶</strong>后公告在列表中优先展示。</p>
@@ -166,6 +175,7 @@
     </div>
 
     <h3>公告列表</h3>
+    {% comment %}公告列表展示社团内全部公告，包括草稿、已发布和已撤回。{% endcomment %}
     <table>
         <tr>
             <th>标题</th>
@@ -201,7 +211,7 @@
         {% endfor %}
     </table>
 
-    {% if user.profile.role != 'super_admin' %}
+    {% if user.memberprofile.role != 'super_admin' %}
     <div class="inline-actions">
         <a href="{% url 'club:club_notice_list' club.pk %}">查看成员可见公告</a>
     </div>

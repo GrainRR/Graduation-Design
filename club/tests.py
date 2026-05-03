@@ -1,3 +1,14 @@
+"""
+业务回归测试。
+
+这些测试覆盖项目里最容易出错的流程：
+- 多社团身份隔离；
+- 入社审批不会覆盖成员原主社团；
+- 成立社团审批的幂等与防重复；
+- 活动发起审批的提交、撤回、修改、取消状态流转；
+- 高级管理员用户批量管理。
+"""
+
 from datetime import timedelta
 
 from urllib.parse import urlencode
@@ -27,6 +38,8 @@ User = get_user_model()
 
 
 class MyClubWorkspaceTests(TestCase):
+    """我的社团工作台与部门管理权限隔离。"""
+
     def setUp(self):
         self.user = User.objects.create_user(username="leader", password="pass12345")
         self.profile = MemberProfile.objects.create(
@@ -121,6 +134,8 @@ class MyClubWorkspaceTests(TestCase):
 
 
 class JoinApplicationMembershipTests(TestCase):
+    """入社申请审批后，补充 ClubMembership，但不覆盖用户已有主社团。"""
+
     def setUp(self):
         self.admin_user = User.objects.create_user(username="admin", password="pass12345")
         self.admin_profile = MemberProfile.objects.create(
@@ -182,6 +197,8 @@ class JoinApplicationMembershipTests(TestCase):
 
 
 class ClubCreationApprovalTests(TestCase):
+    """成立社团审批：通过后建社团、任命社长，并防止重复审批。"""
+
     def setUp(self):
         self.super_user = User.objects.create_user(username="super_creation", password="pass12345")
         MemberProfile.objects.create(
@@ -246,6 +263,8 @@ class ClubCreationApprovalTests(TestCase):
 
 
 class ActivityLaunchApprovalTests(TestCase):
+    """活动发起审批状态机：提交、撤回、重提、取消和超管列表可见性。"""
+
     def setUp(self):
         self.user = User.objects.create_user(username="activity_leader", password="pass12345")
         self.profile = MemberProfile.objects.create(
@@ -438,6 +457,8 @@ class ActivityLaunchApprovalTests(TestCase):
 
 
 class SuperAdminUserManageTests(TestCase):
+    """高级管理员用户管理页：批量修改和批量删除的关键边界。"""
+
     def setUp(self):
         self.super_user = User.objects.create_user(username="sa_um", password="oldpass")
         self.super_profile = MemberProfile.objects.create(

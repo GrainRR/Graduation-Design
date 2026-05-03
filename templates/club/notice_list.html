@@ -1,11 +1,16 @@
 {% extends 'club/base.html' %}
+{% comment %}
+公告列表页。
+视图：notice_list。
+关键上下文：club、notices、read_ids、is_super_admin_list；read_ids 用于标记当前成员已读状态。
+{% endcomment %}
 {% block page_back %}
 {% if club %}
 <p class="page-back">
-    {% if user.profile.role == 'super_admin' %}
+    {% if user.memberprofile.role == 'super_admin' %}
     <a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a>
     {% endif %}
-    <a class="btn" href="{% url 'club:my_club_detail' club.pk %}" {% if user.profile.role == 'super_admin' %}style="margin-left:8px;"{% endif %}>返回社团工作区</a>
+    <a class="btn" href="{% url 'club:my_club_detail' club.pk %}" {% if user.memberprofile.role == 'super_admin' %}style="margin-left:8px;"{% endif %}>返回社团工作区</a>
 </p>
 {% else %}
 <p class="page-back"><a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a></p>

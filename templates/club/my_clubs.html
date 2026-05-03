@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+我的社团页。
+视图：my_clubs。
+关键上下文：club_rows，每行带当前用户在该社团的 identity_meta 和待审批角标。
+{% endcomment %}
 {% block content %}
 <h2>我的社团</h2>
 <p class="muted">点击社团卡片进入对应社团工作区，按你的身份查看或管理功能。</p>

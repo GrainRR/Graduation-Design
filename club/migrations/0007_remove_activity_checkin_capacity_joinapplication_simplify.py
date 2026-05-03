@@ -1,3 +1,5 @@
+"""活动和入社申请简化迁移：移除签到/容量等暂不使用字段，保留核心申请字段。"""
+
 from django.db import migrations, models
 
 

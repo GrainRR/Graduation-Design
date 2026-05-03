@@ -1,4 +1,9 @@
 {% extends 'club/base.html' %}
+{% comment %}
+成立社团审批页。
+视图：club_creation_manage。
+关键上下文：apps；通过后后端会创建社团、加入成员、任命申请人为社长。
+{% endcomment %}
 {% block page_back %}
 <p class="page-back"><a class="btn" href="{% url 'club:club_list' %}">返回社团列表</a></p>
 {% endblock %}
