@@ -46,6 +46,8 @@ urlpatterns = [
     # 公告列表、公告详情、公告管理动作
     path("notices/", views.notice_list, name="notice_list"),
     path("my-clubs/<int:club_pk>/notices/", views.notice_list, name="club_notice_list"),
+    path("my-clubs/<int:club_pk>/notices/new/", views.notice_edit, name="club_notice_new"),
+    path("my-clubs/<int:club_pk>/notices/<int:pk>/edit/", views.notice_edit, name="club_notice_edit"),
     path("notices/<int:pk>/", views.notice_detail, name="notice_detail"),
     path("notices/<int:pk>/mark-read/", views.notice_mark_read, name="notice_mark_read"),
     path("admin/notices/", views.notice_manage, name="notice_manage"),

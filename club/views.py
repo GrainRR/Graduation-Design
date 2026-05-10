@@ -64,6 +64,7 @@ from .models import (
     NoticeRead,
     NoticeScope,
     NoticeStatus,
+    NoticeView,
     Position,
     RegistrationStatus,
     RoleChoices,
@@ -802,6 +803,12 @@ def club_list(request):
             .values("club_id")
             .annotate(cnt=Count("id"))
         }
+    unviewed_map = _unviewed_notice_counts_by_club(request.user) if not is_super_admin else {}
+    unviewed_notice_ids = (
+        set(get_unviewed_visible_notices(request.user).values_list("id", flat=True))
+        if not is_super_admin
+        else set()
+    )
     card_rows = []
     for c in clubs:
         preview_notices = list(
@@ -811,12 +818,15 @@ def club_list(request):
                 publish_at__lte=now,
             ).order_by("-pinned", "-publish_at")[:3]
         )
+        for notice in preview_notices:
+            notice.is_unviewed = notice.pk in unviewed_notice_ids
         card_rows.append(
             {
                 "club": c,
                 "notices": preview_notices,
                 "card_url": _club_entry_redirect_url(profile, c.pk),
                 "has_pending_approval": pending_map.get(c.pk, 0) > 0,
+                "has_unviewed_notice": unviewed_map.get(c.pk, 0) > 0,
             }
         )
     return render(
@@ -850,13 +860,16 @@ def my_clubs(request):
             .annotate(cnt=Count("id"))
         }
     club_rows = []
-    for club in _get_joined_clubs(profile):
+    joined_clubs = list(_get_joined_clubs(profile))
+    unviewed_map = _unviewed_notice_counts_by_club(request.user, [club.pk for club in joined_clubs])
+    for club in joined_clubs:
         identity = _get_profile_club_identity(profile, club)
         club_rows.append(
             {
                 "club": club,
                 "identity_meta": _get_identity_meta(identity),
                 "has_pending_approval": pending_map.get(club.pk, 0) > 0,
+                "has_unviewed_notice": unviewed_map.get(club.pk, 0) > 0,
             }
         )
     return render(request, "club/my_clubs.html", {"club_rows": club_rows})
@@ -881,6 +894,7 @@ def my_club_detail(request, pk):
             Notice.objects.filter(club=club, status=NoticeStatus.PUBLISHED, publish_at__lte=timezone.now())
             .order_by("-pinned", "-publish_at")[:5]
         )
+        club_has_unviewed_notice = False
         club_pending_join_count = JoinApplication.objects.filter(
             club=club,
             status=ApplicationStatus.PENDING,
@@ -893,7 +907,13 @@ def my_club_detail(request, pk):
             "department",
             "position",
         )
-        recent_notices = get_visible_notices(request.user, club=club)[:5]
+        unviewed_notice_ids = set(
+            get_unviewed_visible_notices(request.user, club=club).values_list("id", flat=True)
+        )
+        club_has_unviewed_notice = bool(unviewed_notice_ids)
+        recent_notices = list(get_visible_notices(request.user, club=club)[:5])
+        for notice in recent_notices:
+            notice.is_unviewed = notice.pk in unviewed_notice_ids
         club_pending_join_count = 0
         if identity_meta and identity_meta.get("can_manage"):
             club_pending_join_count = JoinApplication.objects.filter(
@@ -920,6 +940,7 @@ def my_club_detail(request, pk):
             "recent_notices": recent_notices,
             "stats": stats,
             "club_pending_join_count": club_pending_join_count,
+            "club_has_unviewed_notice": club_has_unviewed_notice,
         },
     )
 
@@ -936,7 +957,7 @@ def club_info_view(request):
 
 @login_required
 def club_info_edit(request, club_pk=None):
-    """维护社团基础资料与社团公告。"""
+    """维护社团基础资料。"""
     profile = request.user.memberprofile
     # 超管必须从具体社团进入；普通用户需先证明自己在该社团且具备资料维护权限。
     if club_pk and profile.role == RoleChoices.SUPER_ADMIN:
@@ -952,10 +973,8 @@ def club_info_edit(request, club_pk=None):
         club = _get_primary_club_for_info_maintenance(profile)
         if not club:
             raise PermissionDenied("仅社长或副社长可维护社团信息")
-    editing_notice = Notice.objects.filter(pk=request.GET.get("notice"), club=club).first()
     can_club_logo = _can_upload_club_logo(profile, club) or profile.role == RoleChoices.SUPER_ADMIN
 
-    # 同页两个表单共存时用 prefix 区分字段名，避免 club-name 与 notice-title 等字段冲突。
     club_form = ClubInfoForm(
         data=request.POST or None,
         files=request.FILES or None,
@@ -963,12 +982,9 @@ def club_info_edit(request, club_pk=None):
         prefix="club",
         include_logo=can_club_logo,
     )
-    notice_form = NoticeForm(data=request.POST or None, instance=editing_notice, prefix="notice")
-    notice_form.fields["target_department"].queryset = Department.objects.filter(club=club)
 
     if request.method == "POST":
         action = request.POST.get("action")
-        # action 决定本次提交处理哪个表单，模板中的按钮/隐藏域会传入该值。
         if action == "save_club":
             club_form = ClubInfoForm(
                 data=request.POST,
@@ -981,37 +997,14 @@ def club_info_edit(request, club_pk=None):
                 club_form.save()
                 messages.success(request, "社团信息已更新")
                 return redirect("club:club_info_manage", club_pk=club.pk)
-        elif action in ("save_notice", "save_notice_publish"):
-            # 保存公告时始终强制绑定当前社团，防止用户篡改表单提交到别的社团。
-            notice_id = request.POST.get("notice_id")
-            instance = Notice.objects.filter(pk=notice_id, club=club).first() if notice_id else None
-            notice_form = NoticeForm(data=request.POST, instance=instance, prefix="notice")
-            notice_form.fields["target_department"].queryset = Department.objects.filter(club=club)
-            if notice_form.is_valid():
-                notice = notice_form.save(commit=False)
-                notice.club = club
-                notice.created_by = request.user
-                if action == "save_notice_publish":
-                    notice.status = NoticeStatus.PUBLISHED
-                notice.save()
-                messages.success(
-                    request,
-                    "公告已保存并发布" if action == "save_notice_publish" else "公告已保存",
-                )
-                return redirect("club:club_info_manage", club_pk=club.pk)
 
-    notices = Notice.objects.filter(club=club).order_by("-pinned", "-publish_at", "-created_at")
     return render(
         request,
         "club/club_info_manage.html",
         {
             "club": club,
             "club_form": club_form,
-            "notice_form": notice_form,
-            "editing_notice": editing_notice,
-            "notices": notices,
             "can_upload_club_logo": can_club_logo,
-            "schedule_now": timezone.now(),
         },
     )
 
@@ -1411,6 +1404,37 @@ def get_visible_notices(user, club=None):
     return notices.filter(club=club) if club else notices
 
 
+def get_unviewed_visible_notices(user, club=None):
+    """返回当前用户可见但尚未打开过的公告查询集。"""
+    profile = user.memberprofile
+    if profile.role == RoleChoices.SUPER_ADMIN:
+        return Notice.objects.none()
+    return get_visible_notices(user, club=club).exclude(views__profile=profile)
+
+
+def _unviewed_notice_counts_by_club(user, club_ids=None):
+    """按社团聚合当前用户未查看公告数量。"""
+    profile = user.memberprofile
+    if profile.role == RoleChoices.SUPER_ADMIN:
+        return {}
+    notices = get_unviewed_visible_notices(user)
+    if club_ids is not None:
+        notices = notices.filter(club_id__in=club_ids)
+    return {
+        row["club_id"]: row["cnt"]
+        for row in notices.order_by().values("club_id").annotate(cnt=Count("id"))
+    }
+
+
+def _mark_notice_viewed_if_visible(user, notice):
+    """打开公告详情即视为已查看；不等同于手动确认已读。"""
+    profile = user.memberprofile
+    if profile.role == RoleChoices.SUPER_ADMIN:
+        return
+    if get_visible_notices(user).filter(pk=notice.pk).exists():
+        NoticeView.objects.get_or_create(notice=notice, profile=profile)
+
+
 def _profile_pks_who_can_manage_club(club_pk):
     """获取在指定社团具备管理权限的成员ID集合。"""
     leader_ids = set(
@@ -1466,6 +1490,31 @@ def _notice_read_stats_bundle(notice):
     return eligible_ids, eligible_count, read_count
 
 
+def _can_manage_notices(profile, club):
+    """判断当前用户是否可维护指定社团的公告。"""
+    if not club:
+        return False
+    return (
+        profile.role == RoleChoices.SUPER_ADMIN
+        or _can_maintain_club_info(profile, club)
+        or club.pk in _get_manageable_club_ids(profile)
+    )
+
+
+def _attach_notice_read_stats(notices):
+    """为公告管理卡片补充已读统计展示字段。"""
+    notice_list = list(notices)
+    for notice in notice_list:
+        if notice.track_read_stats and notice.status == NoticeStatus.PUBLISHED and notice.club_id:
+            _, eligible_count, read_count = _notice_read_stats_bundle(notice)
+            notice.read_stat_text = f"{read_count}/{eligible_count} 已读"
+        elif notice.track_read_stats:
+            notice.read_stat_text = "待发布后统计"
+        else:
+            notice.read_stat_text = "未开启统计"
+    return notice_list
+
+
 @login_required
 def notice_list(request, club_pk=None):
     """展示当前用户可见的公告列表。"""
@@ -1473,24 +1522,48 @@ def notice_list(request, club_pk=None):
     if profile.role == RoleChoices.SUPER_ADMIN:
         if club_pk:
             club = get_object_or_404(ClubInfo, pk=club_pk)
-            notices = (
-                Notice.objects.filter(club=club, status=NoticeStatus.PUBLISHED, publish_at__lte=timezone.now())
-                .order_by("-pinned", "-publish_at")
-            )
+            notices = Notice.objects.filter(club=club).order_by("-pinned", "-publish_at", "-created_at")
+            notices = _attach_notice_read_stats(notices)
             return render(
                 request,
                 "club/notice_list.html",
-                {"club": club, "notices": notices, "read_ids": set(), "is_super_admin_list": True},
+                {
+                    "club": club,
+                    "notices": notices,
+                    "read_ids": set(),
+                    "is_super_admin_list": True,
+                    "can_manage_notices": True,
+                    "schedule_now": timezone.now(),
+                },
             )
         messages.info(request, "请从社团列表进入具体社团后查看公告。")
         return redirect("club:club_list")
     club = _require_joined_club(profile, club_pk) if club_pk else None
-    notices = get_visible_notices(request.user, club=club)
+    can_manage_notices = _can_manage_notices(profile, club)
+    if can_manage_notices and club:
+        notices = Notice.objects.filter(club=club).order_by("-pinned", "-publish_at", "-created_at")
+        notices = _attach_notice_read_stats(notices)
+    else:
+        notices = get_visible_notices(request.user, club=club)
     read_ids = set(request.user.memberprofile.notice_reads.values_list("notice_id", flat=True))
+    unviewed_notice_ids = set(
+        get_unviewed_visible_notices(request.user, club=club).values_list("id", flat=True)
+    )
+    notices = list(notices)
+    for notice in notices:
+        notice.is_unviewed = notice.pk in unviewed_notice_ids
     return render(
         request,
         "club/notice_list.html",
-        {"club": club, "notices": notices, "read_ids": read_ids, "is_super_admin_list": False},
+        {
+            "club": club,
+            "notices": notices,
+            "read_ids": read_ids,
+            "unviewed_notice_ids": unviewed_notice_ids,
+            "is_super_admin_list": False,
+            "can_manage_notices": can_manage_notices,
+            "schedule_now": timezone.now(),
+        },
     )
 
 
@@ -1499,10 +1572,16 @@ def notice_detail(request, pk):
     """展示单条公告详情及已读统计信息。"""
     profile = request.user.memberprofile
     notice = get_object_or_404(Notice, pk=pk)
-    if profile.role != RoleChoices.SUPER_ADMIN:
+    can_manage_notice = profile.role == RoleChoices.SUPER_ADMIN or _can_manage_notices(profile, notice.club)
+    if profile.role != RoleChoices.SUPER_ADMIN and not can_manage_notice:
         notice = get_object_or_404(get_visible_notices(request.user), pk=notice.pk)
+    _mark_notice_viewed_if_visible(request.user, notice)
 
-    ctx = {"notice": notice}
+    ctx = {
+        "notice": notice,
+        "can_manage_notice": can_manage_notice,
+        "schedule_now": timezone.now(),
+    }
     show_stats = (
         notice.track_read_stats
         and notice.status == NoticeStatus.PUBLISHED
@@ -1546,45 +1625,88 @@ def notice_mark_read(request, pk):
     return redirect("club:notice_detail", pk=pk)
 
 
+@login_required
 def notice_manage(request):
-    """公告管理入口：重定向到社团信息维护页。"""
+    """公告管理入口：定位到当前可管理社团的公告列表。"""
     profile = request.user.memberprofile
     if profile.role == RoleChoices.SUPER_ADMIN:
         messages.info(request, "请从社团列表进入具体社团后编辑公告")
         return redirect("club:club_list")
     club = _require_manageable_club(profile)
-    return redirect("club:club_info_manage", club_pk=club.pk)
+    return redirect("club:club_notice_list", club_pk=club.pk)
 
 
-def notice_edit(request, pk=None):
-    """公告编辑入口：统一跳转到社团信息维护页。"""
+@login_required
+def notice_edit(request, pk=None, club_pk=None):
+    """创建或编辑社团公告。"""
     profile = request.user.memberprofile
-    if profile.role == RoleChoices.SUPER_ADMIN:
-        messages.info(request, "请从社团列表进入具体社团后编辑公告")
-        return redirect("club:club_list")
     if pk:
         notice = get_object_or_404(Notice, pk=pk)
-        _require_manageable_club(profile, notice.club_id)
-        return redirect(f"{redirect('club:club_info_manage', club_pk=notice.club_id).url}?notice={notice.pk}")
-    club = _require_manageable_club(profile)
-    return redirect("club:club_info_manage", club_pk=club.pk)
+        club = get_object_or_404(ClubInfo, pk=club_pk or notice.club_id)
+        if notice.club_id != club.pk:
+            raise PermissionDenied("公告不属于当前社团")
+        instance = notice
+    else:
+        instance = None
+        if profile.role == RoleChoices.SUPER_ADMIN:
+            if not club_pk:
+                messages.info(request, "请从社团列表进入具体社团后新建公告")
+                return redirect("club:club_list")
+            club = get_object_or_404(ClubInfo, pk=club_pk)
+        elif club_pk:
+            club = _require_joined_club(profile, club_pk)
+        else:
+            club = _require_manageable_club(profile)
+
+    if not _can_manage_notices(profile, club):
+        raise PermissionDenied("无权维护该社团公告")
+
+    form = NoticeForm(data=request.POST or None, instance=instance)
+    form.fields["target_department"].queryset = Department.objects.filter(club=club)
+    if request.method == "POST" and form.is_valid():
+        notice = form.save(commit=False)
+        notice.club = club
+        if instance is None or not notice.created_by_id:
+            notice.created_by = request.user
+        if request.POST.get("action") == "save_notice_publish":
+            notice.status = NoticeStatus.PUBLISHED
+        elif instance is None:
+            notice.status = NoticeStatus.DRAFT
+        notice.save()
+        messages.success(
+            request,
+            "公告已保存并发布" if request.POST.get("action") == "save_notice_publish" else "公告已保存",
+        )
+        return redirect("club:club_notice_list", club_pk=club.pk)
+
+    return render(
+        request,
+        "club/notice_form.html",
+        {
+            "club": club,
+            "form": form,
+            "notice": instance,
+        },
+    )
 
 
+@login_required
 def notice_action(request, pk, action, club_pk=None):
     """执行公告发布/撤回动作。"""
     notice = get_object_or_404(Notice, pk=pk)
     profile = request.user.memberprofile
     target_club_pk = club_pk or notice.club_id
-    if profile.role == RoleChoices.SUPER_ADMIN:
-        get_object_or_404(ClubInfo, pk=target_club_pk)
-    else:
-        _require_manageable_club(profile, target_club_pk)
+    club = get_object_or_404(ClubInfo, pk=target_club_pk)
+    if notice.club_id != club.pk:
+        raise PermissionDenied("公告不属于当前社团")
+    if not _can_manage_notices(profile, club):
+        raise PermissionDenied("无权维护该社团公告")
     if action == "publish":
         notice.status = NoticeStatus.PUBLISHED
     elif action == "recall":
         notice.status = NoticeStatus.RECALLED
     notice.save(update_fields=["status"])
-    return redirect("club:club_info_manage", club_pk=notice.club_id)
+    return redirect("club:club_notice_list", club_pk=notice.club_id)
 
 
 @login_required

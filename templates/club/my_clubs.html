@@ -11,7 +11,7 @@
 <div class="club-grid">
 {% for row in club_rows %}
 <a class="club-card" href="{% url 'club:my_club_detail' row.club.pk %}" style="position:relative;">
-    {% if row.has_pending_approval %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+    {% if row.has_pending_approval or row.has_unviewed_notice %}<span class="notify-dot on-light" aria-hidden="true"></span>{% endif %}
     {% if row.club.logo %}
     <div class="club-card-logo"><img src="{{ row.club.logo.url }}" alt="{{ row.club.name }}"></div>
     {% elif row.club.logo_url %}

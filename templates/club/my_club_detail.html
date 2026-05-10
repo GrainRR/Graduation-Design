@@ -34,7 +34,7 @@ identity_meta 的 can_manage/can_lead/can_maintain_club_info 决定按钮是否�
     <div class="club-workspace-head-actions">
         <a class="btn btn-header-maintain" href="{% url 'club:club_info_manage' club.pk %}">维护社团信息</a>
         {% if club_identity == 'vice_president' %}
-        <p class="muted maintain-hint">说明：副社长一般为成员账号，亦可在此维护社团信息与公告。</p>
+        <p class="muted maintain-hint">说明：副社长一般为成员账号，亦可在此维护社团信息。</p>
         {% endif %}
     </div>
     {% endif %}
@@ -45,10 +45,14 @@ identity_meta 的 can_manage/can_lead/can_maintain_club_info 决定按钮是否�
         <h3>简介</h3>
         <div>{{ club.intro|linebreaks|default:"暂无简介" }}</div>
     </div>
-    <div class="workspace-card workspace-intro-side">
+    <div class="workspace-card workspace-intro-side" style="position:relative;">
+        {% if club_has_unviewed_notice %}<span class="notify-dot on-light" aria-hidden="true"></span>{% endif %}
         <h3>通知公告</h3>
-        <p class="muted">查看当前社团面向你可见的全部通知与公告。</p>
-        <a class="btn" href="{% url 'club:club_notice_list' club.pk %}">查看通知公告</a>
+        <p class="muted">{% if identity_meta.can_maintain_club_info %}查看、发布和维护当前社团的通知公告。{% else %}查看当前社团面向你可见的全部通知与公告。{% endif %}</p>
+        <a class="btn" href="{% url 'club:club_notice_list' club.pk %}" style="position:relative;">
+            查看通知公告
+            {% if club_has_unviewed_notice %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+        </a>
     </div>
     <div class="mini-stats workspace-intro-stats">
         <div class="mini-stat"><div class="label">成员数</div><div class="value">{{ stats.member_count }}</div></div>
@@ -113,9 +117,10 @@ identity_meta 的 can_manage/can_lead/can_maintain_club_info 决定按钮是否�
     {% if recent_notices %}
     <ul class="notice-simple-list">
     {% for n in recent_notices %}
-    <li>
+    <li class="{% if n.is_unviewed %}notice-is-unviewed{% endif %}">
         <strong><a class="text-link" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a></strong>
         <span class="muted">{{ n.publish_at|date:"Y-m-d H:i" }}</span>
+        {% if n.is_unviewed %}<span class="notify-dot on-light" aria-hidden="true"></span>{% endif %}
     </li>
     {% endfor %}
     </ul>

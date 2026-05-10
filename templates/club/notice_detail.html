@@ -2,46 +2,172 @@
 {% comment %}
 公告详情页。
 视图：notice_detail。
-关键上下文：notice，以及开启已读统计时的 notice_read_count、notice_eligible_count、notice_user_*。
+关键上下文：notice、can_manage_notice，以及开启已读统计时的 notice_read_count、notice_eligible_count、notice_user_*。
 {% endcomment %}
 {% block page_back %}
 <p class="page-back">
     {% if notice.club %}
-        {% if user.memberprofile.role == 'super_admin' %}
-        <a class="btn" href="{% url 'club:my_club_detail' notice.club.pk %}">返回社团工作区</a>
-        {% else %}
-        <a class="btn" href="{% url 'club:club_notice_list' notice.club.pk %}">返回公告列表</a>
-        {% endif %}
+    <a class="btn" href="{% url 'club:club_notice_list' notice.club.pk %}">返回公告列表</a>
     {% else %}
     <a class="btn" href="{% url 'club:my_clubs' %}">返回我的社团</a>
     {% endif %}
 </p>
 {% endblock %}
 {% block content %}
-<h2>{{ notice.title }}</h2>
-<p class="muted">{{ notice.club.name }} · 发布时间：{{ notice.publish_at|date:"Y-m-d H:i" }}</p>
-{% if notice_read_count is not None %}
 <style>
-.notice-read-bar { display: flex; align-items: center; gap: 14px; margin: 16px 0; flex-wrap: wrap; }
-.notice-read-ratio { font-weight: 600; color: var(--text); }
-.notice-read-btn { border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; font-family: inherit; }
-.notice-read-mark { background: #dc2626; color: #fff; }
-.notice-read-mark:hover { background: #b91c1c; }
-.notice-read-done { background: #2563eb; color: #fff; cursor: not-allowed; opacity: 0.95; }
+    .notice-detail-head {
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 16px;
+        margin-bottom: 18px;
+    }
+
+    .notice-detail-kicker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .notice-pill {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .notice-pill.primary {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .notice-detail-title {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.35;
+    }
+
+    .notice-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .notice-detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .notice-read-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 12px 14px;
+        margin: 16px 0;
+    }
+
+    .notice-read-ratio {
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .notice-read-btn {
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+    .notice-read-mark {
+        background: #dc2626;
+        color: #fff;
+    }
+
+    .notice-read-mark:hover {
+        background: #b91c1c;
+    }
+
+    .notice-read-done {
+        background: #2563eb;
+        color: #fff;
+        cursor: not-allowed;
+        opacity: 0.95;
+    }
+
+    .notice-detail-body {
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.85;
+        word-break: break-word;
+    }
+
+    .notice-detail-body p {
+        margin: 0 0 12px;
+    }
 </style>
-<div class="notice-read-bar">
-    <span class="notice-read-ratio">已读 {{ notice_read_count }}/{{ notice_eligible_count }}</span>
-    {% if user.memberprofile.role != 'super_admin' %}
-        {% if notice_user_has_read %}
-            <button type="button" class="notice-read-btn notice-read-done" disabled aria-disabled="true">已读</button>
-        {% elif notice_user_can_mark_read %}
-            <form method="post" action="{% url 'club:notice_mark_read' notice.pk %}" style="display:inline; margin:0;">
-                {% csrf_token %}
-                <button type="submit" class="notice-read-btn notice-read-mark">标记为已读</button>
-            </form>
+
+<article class="notice-detail">
+    <header class="notice-detail-head">
+        <div class="notice-detail-kicker">
+            {% if notice.pinned %}<span class="notice-pill primary">置顶</span>{% endif %}
+            {% if can_manage_notice %}<span class="notice-pill">{{ notice.get_status_display }}</span>{% endif %}
+            {% if notice.status == 'published' and notice.publish_at > schedule_now %}
+            <span class="notice-pill">定时发布</span>
+            {% endif %}
+        </div>
+
+        <h2 class="notice-detail-title">{{ notice.title }}</h2>
+        <div class="notice-detail-meta">
+            {% if notice.club %}<span>社团：{{ notice.club.name }}</span>{% endif %}
+            <span>发布时间：{{ notice.publish_at|date:"Y-m-d H:i" }}</span>
+            <span>可见范围：{{ notice.get_scope_display }}</span>
+            {% if notice.target_department %}<span>目标部门：{{ notice.target_department.name }}</span>{% endif %}
+            {% if notice.target_role %}<span>目标角色：{{ notice.get_target_role_display }}</span>{% endif %}
+        </div>
+
+        {% if can_manage_notice and notice.club %}
+        <div class="notice-detail-actions">
+            <a class="btn btn-sm" href="{% url 'club:club_notice_edit' notice.club.pk notice.pk %}">编辑公告</a>
+            {% if notice.status == 'published' %}
+            <a class="btn btn-sm btn-danger" href="{% url 'club:club_notice_action' notice.club.pk notice.pk 'recall' %}">撤回公告</a>
+            {% else %}
+            <a class="btn btn-sm" href="{% url 'club:club_notice_action' notice.club.pk notice.pk 'publish' %}">发布公告</a>
+            {% endif %}
+        </div>
         {% endif %}
+    </header>
+
+    {% if notice_read_count is not None %}
+    <div class="notice-read-panel">
+        <span class="notice-read-ratio">已读 {{ notice_read_count }}/{{ notice_eligible_count }}</span>
+        {% if user.memberprofile.role != 'super_admin' %}
+            {% if notice_user_has_read %}
+                <button type="button" class="notice-read-btn notice-read-done" disabled aria-disabled="true">已读</button>
+            {% elif notice_user_can_mark_read %}
+                <form method="post" action="{% url 'club:notice_mark_read' notice.pk %}" style="display:inline; margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="notice-read-btn notice-read-mark">标记为已读</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </div>
     {% endif %}
-</div>
-{% endif %}
-<div>{{ notice.content|linebreaks }}</div>
+
+    <div class="notice-detail-body">{{ notice.content|linebreaks }}</div>
+</article>
 {% endblock %}

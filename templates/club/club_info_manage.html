@@ -1,9 +1,8 @@
 {% extends 'club/base.html' %}
 {% comment %}
-社团信息与公告维护页。
+社团信息维护页。
 视图：club_info_edit。
-关键上下文：club_form、notice_form、editing_notice、notices、can_upload_club_logo、schedule_now。
-同页有两个表单，后端通过 action 和 prefix 区分“保存社团信息”与“保存公告”。
+关键上下文：club_form、can_upload_club_logo。
 {% endcomment %}
 {% block page_back %}
 <p class="page-back">
@@ -89,7 +88,7 @@
 
 <div class="club-info-manage">
     <h2>{% if user.memberprofile.role == 'super_admin' %}编辑社团信息{% else %}维护社团信息{% endif %}</h2>
-    <p class="muted">{{ club.name }}：社团名称、简介、公告；{% if user.memberprofile.role == 'super_admin' %}部门、人员职务与入社审批请使用下方入口。{% else %}社长/副社长可在此维护基础信息与公告。{% endif %}</p>
+    <p class="muted">{{ club.name }}：社团名称、简介、章程、联系方式等基础资料；{% if user.memberprofile.role == 'super_admin' %}部门、人员职务与入社审批请使用下方入口。{% else %}社长/副社长可在此维护基础信息。{% endif %}</p>
     {% if user.memberprofile.role == 'super_admin' %}
     {% comment %}超管从此处跳转到同一社团的部门、职务和入社审批页面。{% endcomment %}
     <div class="section-card" style="margin-bottom:16px;">
@@ -106,115 +105,39 @@
     <p class="muted">社团标志图片仅社长、副社长可上传；你可继续编辑文字信息。</p>
     {% endif %}
 
-    <div class="stack-grid">
-        {% comment %}左侧：社团基础资料表单，字段来自 ClubInfoForm。{% endcomment %}
-        <div class="section-card">
-            <h3>基础信息</h3>
-            <form method="post" enctype="multipart/form-data" class="info-manage-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="save_club">
-                {% for field in club_form %}
-                    {% if field.field.widget.input_type == 'checkbox' %}
-                    <div class="form-field checkbox-field">
-                        {{ field }}
-                        <div class="checkbox-content">
-                            {{ field.label_tag }}
-                            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
-                            {{ field.errors }}
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="form-field">
+    {% comment %}社团基础资料表单，字段来自 ClubInfoForm。{% endcomment %}
+    <div class="section-card">
+        <h3>基础信息</h3>
+        <form method="post" enctype="multipart/form-data" class="info-manage-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_club">
+            {% for field in club_form %}
+                {% if field.field.widget.input_type == 'checkbox' %}
+                <div class="form-field checkbox-field">
+                    {{ field }}
+                    <div class="checkbox-content">
                         {{ field.label_tag }}
-                        {{ field }}
                         {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
                         {{ field.errors }}
                     </div>
-                    {% endif %}
-                {% endfor %}
-                <div class="form-actions">
-                    <button type="submit">保存社团信息</button>
                 </div>
-            </form>
-        </div>
-        {% comment %}右侧：公告表单，保存草稿与保存并发布通过不同 action 区分。{% endcomment %}
-        <div class="section-card">
-            <h3>{% if editing_notice %}编辑公告{% else %}新建公告{% endif %}</h3>
-            <p class="muted" style="margin-top:0;">填写<strong>发布时间</strong>可定时上线：须为<strong>已发布</strong>状态且当前时间到达该时间后，成员端才可见。勾选<strong>是否置顶</strong>后公告在列表中优先展示。</p>
-            <form method="post" class="info-manage-form">
-                {% csrf_token %}
-                <input type="hidden" name="notice_id" value="{{ editing_notice.id|default:'' }}">
-                {% for field in notice_form %}
-                    {% if field.field.widget.input_type == 'checkbox' %}
-                    <div class="form-field checkbox-field">
-                        {{ field }}
-                        <div class="checkbox-content">
-                            {{ field.label_tag }}
-                            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
-                            {{ field.errors }}
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="form-field">
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
-                        {{ field.errors }}
-                    </div>
-                    {% endif %}
-                {% endfor %}
-                <div class="form-actions">
-                    <button type="submit" name="action" value="save_notice" style="background:#64748b;">{% if editing_notice %}保存草稿{% else %}保存为草稿{% endif %}</button>
-                    <button type="submit" name="action" value="save_notice_publish">保存并发布</button>
-                </div>
-            </form>
-            {% if editing_notice %}
-            <p style="margin-top:12px; margin-bottom:0;"><a class="btn" href="{% url 'club:club_info_manage' club.pk %}">取消编辑</a></p>
-            {% endif %}
-        </div>
-    </div>
-
-    <h3>公告列表</h3>
-    {% comment %}公告列表展示社团内全部公告，包括草稿、已发布和已撤回。{% endcomment %}
-    <table>
-        <tr>
-            <th>标题</th>
-            <th>发布时间</th>
-            <th>置顶</th>
-            <th>成员端可见</th>
-            <th>状态</th>
-            <th>操作</th>
-        </tr>
-        {% for n in notices %}
-        <tr>
-            <td><a href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a></td>
-            <td>{{ n.publish_at|date:"Y-m-d H:i" }}</td>
-            <td>{% if n.pinned %}是{% else %}否{% endif %}</td>
-            <td>
-                {% if n.status == 'published' and n.publish_at > schedule_now %}
-                <span class="muted">定时（{{ n.publish_at|date:"m-d H:i" }}起）</span>
-                {% elif n.status == 'published' %}
-                是
                 {% else %}
-                <span class="muted">—</span>
+                <div class="form-field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+                    {{ field.errors }}
+                </div>
                 {% endif %}
-            </td>
-            <td>{{ n.get_status_display }}</td>
-            <td>
-                <a href="{% url 'club:club_info_manage' club.pk %}?notice={{ n.pk }}">编辑</a>
-                <a href="{% url 'club:club_notice_action' club.pk n.pk 'publish' %}">发布</a>
-                <a href="{% url 'club:club_notice_action' club.pk n.pk 'recall' %}">撤回</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="muted">暂无公告</td></tr>
-        {% endfor %}
-    </table>
-
-    {% if user.memberprofile.role != 'super_admin' %}
-    <div class="inline-actions">
-        <a href="{% url 'club:club_notice_list' club.pk %}">查看成员可见公告</a>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="submit">保存社团信息</button>
+            </div>
+        </form>
     </div>
-    {% endif %}
+
+    <div class="inline-actions">
+        <a href="{% url 'club:club_notice_list' club.pk %}">进入通知公告</a>
+    </div>
 </div>
 {% endblock %}

@@ -216,6 +216,17 @@ class NoticeRead(models.Model):
         unique_together = ("notice", "profile")
 
 
+class NoticeView(models.Model):
+    """公告查看记录：用于未查看红点提醒，不影响手动已读统计。"""
+
+    notice = models.ForeignKey(Notice, on_delete=models.CASCADE, related_name="views")
+    profile = models.ForeignKey(MemberProfile, on_delete=models.CASCADE, related_name="notice_views")
+    viewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("notice", "profile")
+
+
 class ActivityStatus(models.TextChoices):
     """活动面向成员端的状态。"""
 

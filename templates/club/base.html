@@ -166,6 +166,9 @@
             transform: translateY(-50%);
             box-shadow: 0 0 0 2px #1e293b;
         }
+        .notify-dot.on-light {
+            box-shadow: 0 0 0 2px #fff;
+        }
         .panel {
             background: var(--card);
             border: 1px solid var(--border);
@@ -468,6 +471,15 @@
             padding: 4px 0;
             border-bottom: 1px solid var(--border);
         }
+        .club-card-notice-list li.notice-is-unviewed {
+            position: relative;
+            padding-right: 14px;
+        }
+        .club-card-notice-list li.notice-is-unviewed .notify-dot {
+            top: 8px;
+            right: 0;
+            box-shadow: 0 0 0 2px #fff;
+        }
         .club-card-notice-list li:last-child { border-bottom: none; }
         .club-card-notice-title {
             overflow: hidden;
@@ -622,6 +634,15 @@
         .club-intro-box { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 12px 0; background: #fafafa; }
         .notice-simple-list { list-style: none; padding: 0; margin: 0; }
         .notice-simple-list li { border-bottom: 1px solid var(--border); padding: 12px 0; }
+        .notice-simple-list li.notice-is-unviewed {
+            position: relative;
+            padding-right: 16px;
+        }
+        .notice-simple-list li.notice-is-unviewed > .notify-dot {
+            top: 16px;
+            right: 0;
+            box-shadow: 0 0 0 2px #fff;
+        }
         .member-role-list { list-style: none; padding: 0; margin: 0; }
         .member-role-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .role-tag { font-size: 12px; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
@@ -841,7 +862,7 @@
             <a href="{% url 'club:my_clubs' %}" class="sidebar-link{% if 'my-clubs' in request.path %} is-active{% endif %}">
                 <span class="nav-icon" aria-hidden="true">📁</span>
                 <span class="nav-text">我的社团</span>
-                {% if approval_badges.club_join_pending_count > 0 %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+                {% if approval_badges.club_join_pending_count > 0 or approval_badges.notice_unviewed_count > 0 %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
             </a>
             {% endif %}
 

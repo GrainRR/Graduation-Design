@@ -6,7 +6,7 @@
 """
 
 from .models import Activity, ActivityLaunchApprovalStatus, ActivityStatus, ApplicationStatus, ClubCreationApplication, JoinApplication, RoleChoices
-from .views import _get_manageable_club_ids
+from .views import _get_manageable_club_ids, get_unviewed_visible_notices
 
 
 def approval_badges(request):
@@ -19,6 +19,7 @@ def approval_badges(request):
         "super_club_creation_pending_count": 0,
         "super_activity_launch_pending_count": 0,
         "super_any_pending_count": 0,
+        "notice_unviewed_count": 0,
     }
     if not user or not user.is_authenticated:
         return {"approval_badges": data}
@@ -34,6 +35,11 @@ def approval_badges(request):
             ).count()
             data["club_join_pending_count"] = join_count
             data["has_any"] = join_count > 0
+
+    if profile.role != RoleChoices.SUPER_ADMIN:
+        notice_unviewed_count = get_unviewed_visible_notices(user).count()
+        data["notice_unviewed_count"] = notice_unviewed_count
+        data["has_any"] = data["has_any"] or notice_unviewed_count > 0
 
     if profile.role == RoleChoices.SUPER_ADMIN:
         # 高级管理员的审批中心聚合成立社团和活动发起两类待办。

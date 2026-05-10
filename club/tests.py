@@ -30,6 +30,9 @@ from .models import (
     JoinApplication,
     MemberAssignment,
     MemberProfile,
+    Notice,
+    NoticeStatus,
+    NoticeView,
     Position,
     RoleChoices,
 )
@@ -131,6 +134,46 @@ class MyClubWorkspaceTests(TestCase):
         self.assertEqual(department.description, "")
         self.assertEqual(department.contact, "")
         self.assertContains(response, "该部门名称已存在")
+
+
+class NoticeUnviewedBadgeTests(TestCase):
+    """未查看公告应在成员入口、社团卡片和公告列表显示红点。"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="notice_member", password="pass12345")
+        self.profile = MemberProfile.objects.create(
+            user=self.user,
+            student_id="20239901",
+            role=RoleChoices.MEMBER,
+        )
+        self.club = ClubInfo.objects.create(name="Notice Club")
+        ClubMembership.objects.create(profile=self.profile, club=self.club)
+        self.notice = Notice.objects.create(
+            club=self.club,
+            title="Unread notice",
+            content="Notice content",
+            status=NoticeStatus.PUBLISHED,
+            publish_at=timezone.now() - timedelta(minutes=5),
+            created_by=self.user,
+        )
+        self.client.force_login(self.user)
+
+    def test_unviewed_notice_badges_clear_after_detail_is_opened(self):
+        my_clubs_response = self.client.get(reverse("club:my_clubs"))
+        self.assertContains(my_clubs_response, 'class="notify-dot')
+
+        notice_list_response = self.client.get(reverse("club:club_notice_list", args=[self.club.pk]))
+        self.assertContains(notice_list_response, 'class="notice-card notice-card-unviewed"')
+
+        detail_response = self.client.get(reverse("club:notice_detail", args=[self.notice.pk]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertTrue(NoticeView.objects.filter(notice=self.notice, profile=self.profile).exists())
+
+        my_clubs_response = self.client.get(reverse("club:my_clubs"))
+        self.assertNotContains(my_clubs_response, 'class="notify-dot')
+
+        notice_list_response = self.client.get(reverse("club:club_notice_list", args=[self.club.pk]))
+        self.assertNotContains(notice_list_response, 'class="notice-card notice-card-unviewed"')
 
 
 class JoinApplicationMembershipTests(TestCase):

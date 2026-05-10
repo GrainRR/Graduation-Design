@@ -6,7 +6,7 @@
 {% endcomment %}
 {% block content %}
 <h2>社团列表</h2>
-<p class="muted">{% if is_super_admin %}卡片最右侧可「编辑社团信息」（名称、简介、公告、部门与人员职务、入社审批）或「撤销社团」。{% else %}同一行可浏览简介、近期公告与成员规模；点击卡片进入工作区或入社申请。{% endif %}</p>
+<p class="muted">{% if is_super_admin %}卡片最右侧可「编辑社团信息」（名称、简介、部门与人员职务、入社审批）或「撤销社团」。{% else %}同一行可浏览简介、近期公告与成员规模；点击卡片进入工作区或入社申请。{% endif %}</p>
 <div class="club-grid club-grid-wide">
 {% for row in card_rows %}
 {% with c=row.club %}
@@ -28,7 +28,7 @@
         {% if row.notices %}
         <ul class="club-card-notice-list">
             {% for n in row.notices %}
-            <li><a class="club-card-notice-title" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a><span class="muted">{{ n.publish_at|date:"m-d" }}</span></li>
+            <li class="{% if n.is_unviewed %}notice-is-unviewed{% endif %}"><a class="club-card-notice-title" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a><span class="muted">{{ n.publish_at|date:"m-d" }}</span>{% if n.is_unviewed %}<span class="notify-dot on-light" aria-hidden="true"></span>{% endif %}</li>
             {% endfor %}
         </ul>
         {% else %}
@@ -46,7 +46,7 @@
 </div>
 {% else %}
 <div class="club-card club-card-horizontal" style="position:relative;">
-    {% if row.has_pending_approval %}<span class="notify-dot" aria-hidden="true"></span>{% endif %}
+    {% if row.has_pending_approval or row.has_unviewed_notice %}<span class="notify-dot on-light" aria-hidden="true"></span>{% endif %}
     <a class="club-card-h-link" href="{{ row.card_url }}" aria-label="进入 {{ c.name }}">
         {% if c.logo %}
         <div class="club-card-logo"><img src="{{ c.logo.url }}" alt="{{ c.name }}"></div>
@@ -65,7 +65,7 @@
         {% if row.notices %}
         <ul class="club-card-notice-list">
             {% for n in row.notices %}
-            <li><a class="club-card-notice-title" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a><span class="muted">{{ n.publish_at|date:"m-d" }}</span></li>
+            <li class="{% if n.is_unviewed %}notice-is-unviewed{% endif %}"><a class="club-card-notice-title" href="{% url 'club:notice_detail' n.pk %}">{{ n.title }}</a><span class="muted">{{ n.publish_at|date:"m-d" }}</span>{% if n.is_unviewed %}<span class="notify-dot on-light" aria-hidden="true"></span>{% endif %}</li>
             {% endfor %}
         </ul>
         {% else %}
